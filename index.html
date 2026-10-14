@@ -898,7 +898,7 @@ function normalizeData(){
   if(!DATA.theme) DATA.theme = 'default';
   if(!DATA.sharepointFolder) DATA.sharepointFolder = 'PID Facilities Reports';
   if(typeof DATA.sharepointSiteId === 'undefined') DATA.sharepointSiteId = '';
-  if(typeof DATA.requireMsAuthForAdmin === 'undefined') DATA.requireMsAuthForAdmin = false;
+  if(DATA.requireMsAuthForAdmin){ DATA.requireMsAuthForAdmin=false; persist(); }
   const defaultSettings=defaultAdminSettings();
   DATA.adminSettings={...defaultSettings,...(DATA.adminSettings||{})};
   DATA.adminSettings.permissionMatrix={...defaultSettings.permissionMatrix,...(DATA.adminSettings.permissionMatrix||{})};
