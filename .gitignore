@@ -1,0 +1,7 @@
+.env
+data/
+node_modules/
+*.zip
+app-settings.txt
+credential*
+.copilot-azure/
