@@ -1987,6 +1987,12 @@ async function notifyByEmail(id, automatic=false){
     `Title: ${wo.title}\nAsset: ${asset ? asset.name : '-'}\nLocation: ${wo.location||'-'}\nPriority: ${wo.priority}\nDue: ${fmtDate(wo.dueDate)}\n\n`+
     `Details: ${wo.description||'-'}\n\n- Sent from PID Facilities Management System`;
 
+  if(automatic){
+    const response=await apiFetch('/api/notifications/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,subject,text:body})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||'Automatic email was not sent.');
+    showToast('Email sent to '+to);return;
+  }
   if(msAuth.canSendMail){
     const sent = await trySendGraphMail(to, subject, body);
     if(sent){ showToast('Email sent to ' + to); return; }
