@@ -448,6 +448,10 @@
         </div>
       </div>
       <div class="kpi-row" id="kpi-row"></div>
+      <div class="grid-2" style="margin-bottom:24px;">
+        <div class="panel"><div class="panel-head"><div><h2>Contractor coverage</h2><div class="sub">Active providers and records needing review</div></div><button class="btn btn-ghost btn-sm" onclick="goToView('contractors')">View contracts →</button></div><div id="overview-contractor-summary"></div></div>
+        <div class="panel"><div class="panel-head"><div><h2>Service levels</h2><div class="sub">Configured response and resolution targets</div></div><button class="btn btn-ghost btn-sm" onclick="goToView('sla')">View SLA rules →</button></div><div id="overview-sla-summary"></div></div>
+      </div>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h2>Work orders due soonest</h2><div class="sub">Filtered to current centre selection</div></div></div>
@@ -3056,6 +3060,10 @@ function renderOpsManagement(){
   document.getElementById('management-pm-summary').innerHTML=DATA.pmTasks.length?'<div class="table-wrap"><table><thead><tr><th>Task</th><th>Asset</th><th>Frequency</th><th>Next due</th><th></th></tr></thead><tbody>'+DATA.pmTasks.map((p,i)=>'<tr><td>'+escapeHtml(p.task)+'</td><td>'+escapeHtml((assetById(p.assetId)||{}).name||'Unassigned')+'</td><td>'+escapeHtml(p.frequency)+'</td><td>'+escapeHtml(fmtDate(p.nextDue))+'</td><td><button class="btn btn-ghost btn-sm" onclick="editManagedPM('+i+')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePM(\''+p.id+'\')">Delete</button></td></tr>').join('')+'</tbody></table></div>':'<div class="empty">No preventive maintenance plans yet.</div>';
   document.getElementById('management-contractor-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+contractors.length+'</strong><span>contractor records</span></div><div class="row"><strong>'+active+'</strong><span>active contracts</span></div><div class="row"><strong>'+expiring+'</strong><span>records requiring review</span></div></div>';
   document.getElementById('management-sla-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+rules.length+'</strong><span>SLA priority rules configured</span></div><div class="row"><strong>'+DATA.workOrders.length+'</strong><span>work orders in the register</span></div></div>';
+  const dashboardContract=document.getElementById('overview-contractor-summary');
+  if(dashboardContract) dashboardContract.innerHTML='<div class="list-simple"><div class="row"><strong>'+active+'</strong><span>active contractors</span></div><div class="row"><strong>'+expiring+'</strong><span>contracts flagged for review</span></div></div>';
+  const dashboardSla=document.getElementById('overview-sla-summary');
+  if(dashboardSla) dashboardSla.innerHTML='<div class="list-simple"><div class="row"><strong>'+rules.length+'</strong><span>priority targets configured</span></div><div class="row"><strong>'+DATA.workOrders.filter(w=>w.status!=='completed'&&w.status!=='COMPLETED').length+'</strong><span>open work orders</span></div></div>';
 }
 
 function renderAll(){
