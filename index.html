@@ -440,7 +440,7 @@
         <div><h1>Facilities Overview</h1><div class="meta" id="overview-date"></div></div>
         <div class="topbar-actions">
           <select class="centre-filter" id="centre-filter" onchange="setFilterCentre(this.value)"></select>
-          <button class="btn btn-accent" type="button" onclick="goToView('workorders');openWOModal()">+ New work order</button>
+          <button class="btn btn-accent" type="button" onclick="goToView('workorder-create')">+ New work order</button>
           <div class="search-wrap">
             <div class="search"><span>âŒ•</span><input placeholder="Asset tag, WO#, locationâ€¦" id="global-search" autocomplete="off" aria-label="Search facilities records" aria-controls="global-search-results" aria-expanded="false"></div>
             <div class="search-results" id="global-search-results" role="listbox" aria-label="Search results"></div>
@@ -560,7 +560,7 @@
           <button class="btn btn-ghost btn-sm" onclick="triggerImport('import-wo')">â¬† Import CSV</button>
           <input type="file" id="import-wo" accept=".csv" style="display:none;" onchange="importWOCSV(event)">
           <button class="btn btn-ghost" onclick="openWorkflowAssistant()">AI workflow assistant</button>
-          <button class="btn btn-accent" onclick="openWOModal()">+ New work order</button>
+          <button class="btn btn-accent" onclick="goToView('workorder-create')">+ New work order</button>
         </div>
       </div>
       <div class="panel">
@@ -568,6 +568,33 @@
         <tbody id="wo-body"></tbody></table>
         <div class="empty" id="wo-empty" style="display:none;"><div class="big">No work orders yet</div>Create one to allocate work to your team.</div>
       </div>
+    </section>
+
+    <!-- CREATE WORK ORDER -->
+    <section class="view" id="view-workorder-create">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px;color:var(--accent);font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Maintenance request</div>
+          <h1 style="margin:5px 0 4px;">Create Work Order</h1>
+          <div class="meta">Capture the issue, select a facility and assign a responsible team.</div>
+        </div>
+        <div class="topbar-actions"><button type="button" class="btn btn-ghost" onclick="goToView('workorders')">← Back to register</button></div>
+      </div>
+      <form id="create-work-order-page" class="panel" onsubmit="event.preventDefault();saveWorkOrderPage()">
+        <div class="row2">
+          <div class="field"><label for="page-wo-title">Work order title *</label><input id="page-wo-title" required placeholder="e.g. Repair leaking pipe"></div>
+          <div class="field"><label for="page-wo-facility">Campus / facility *</label><select id="page-wo-facility" required></select></div>
+          <div class="field"><label for="page-wo-location">Building / room / area</label><input id="page-wo-location" placeholder="e.g. Building 5, Room 2-14"></div>
+          <div class="field"><label for="page-wo-asset">Asset ID (if applicable)</label><input id="page-wo-asset" placeholder="e.g. HVAC-PTA-0042"></div>
+          <div class="field"><label for="page-wo-trade">Trade / discipline *</label><select id="page-wo-trade" required><option>Electrical</option><option>Plumbing</option><option>HVAC / Air Conditioning</option><option>Civil / Building</option><option>Cleaning</option><option>Fire &amp; Safety</option><option>Lifts &amp; Escalators</option><option>Grounds &amp; Landscaping</option><option>IT / Access Control</option><option>Other</option></select></div>
+          <div class="field"><label for="page-wo-priority">Priority *</label><select id="page-wo-priority" required><option>Medium</option><option>Low</option><option>High</option><option>Urgent</option></select></div>
+          <div class="field"><label for="page-wo-assignee">Responsible team / contractor</label><select id="page-wo-assignee"></select></div>
+          <div class="field"><label for="page-wo-reported">Reported by</label><input id="page-wo-reported" placeholder="Name or department"></div>
+          <div class="field" style="grid-column:1/-1;"><label for="page-wo-description">Work description *</label><textarea id="page-wo-description" required placeholder="Describe the fault, location, impact, access requirements and requested action." style="min-height:110px;"></textarea></div>
+        </div>
+        <div id="page-wo-sla-note" class="banner" style="margin-top:14px;background:#fff7e6;color:#805a14;border-color:#f1dfb5;font-size:12px;"></div>
+        <div class="modal-actions" style="margin-top:20px;"><button type="button" class="btn btn-ghost" onclick="goToView('workorders')">Cancel</button><button type="submit" class="btn btn-accent">Create Work Order →</button></div>
+      </form>
     </section>
 
     <!-- MAINTENANCE -->
@@ -1456,7 +1483,8 @@ function showMicrosoftAdminGate(){
 function goToView(view){
   document.querySelectorAll('.navitem').forEach(i=>i.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  const nav = document.querySelector(`.navitem[data-view="${view}"]`);
+  const navView = view==='workorder-create' ? 'workorders' : view;
+  const nav = document.querySelector(`.navitem[data-view="${navView}"]`);
   if(nav){
     nav.classList.add('active');
     const group = nav.closest('.navgroup');
@@ -1779,6 +1807,62 @@ function useWorkflowDraft(){
 }
 function assetOptions(selectedId){
   return `<option value="">- None -</option>` + DATA.assets.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.name} (${a.id})</option>`).join('');
+}
+function renderWorkOrderCreatePage(){
+  const facility=document.getElementById('page-wo-facility');
+  if(!facility)return;
+  const existing=DATA.centres||[];
+  facility.innerHTML=existing.length
+    ? '<option value="" disabled selected>Select a campus or facility</option>'+existing.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('')+'<option value="__other">Other facility</option>'
+    : '<option value="site:UNISA Pretoria Campus" selected>UNISA Pretoria Campus</option><option value="site:UNISA Muckleneuk Campus">UNISA Muckleneuk Campus</option><option value="site:UNISA Sunnyside Campus">UNISA Sunnyside Campus</option><option value="site:UNISA Science Campus">UNISA Science Campus</option><option value="site:Other facility">Other facility</option>';
+  const assignee=document.getElementById('page-wo-assignee');
+  const teams=['Internal Maintenance Team'];
+  assignee.innerHTML=teams.map(x=>'<option value="team:'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('')+
+    (DATA.contractors||[]).map((x,i)=>'<option value="contractor:'+i+'">'+escapeHtml(x.name)+'</option>').join('')+
+    '<option value="">Unassigned</option>'+
+    (DATA.users||[]).filter(x=>['technician','centre','admin','hq'].includes(x.role)).map(x=>'<option value="user:'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('');
+  const note=document.getElementById('page-wo-sla-note');
+  if(note){
+    const byPriority=Object.fromEntries((DATA.slaRules||[]).map(x=>[String(x.priority).toLowerCase(),x.response]));
+    note.textContent='Prototype SLA defaults: Urgent '+(byPriority.urgent||'1 hour')+' · High '+(byPriority.high||'4 hours')+' · Medium '+(byPriority.medium||'24 hours')+' · Low '+(byPriority.low||'72 hours')+'. These are illustrative only and must be replaced with approved contract rules.';
+  }
+}
+async function saveWorkOrderPage(){
+  const title=document.getElementById('page-wo-title').value.trim();
+  const description=document.getElementById('page-wo-description').value.trim();
+  const facilityValue=document.getElementById('page-wo-facility').value;
+  if(!title||!description||!facilityValue){showToast('Complete the required fields before creating the work order');return;}
+  const facility=document.getElementById('page-wo-facility');
+  const facilityName=facility.options[facility.selectedIndex]?.text||'';
+  const centre=centreById(facilityValue);
+  const assigneeValue=document.getElementById('page-wo-assignee').value;
+  let assignedTo='Unassigned', worker=null;
+  if(assigneeValue.startsWith('user:')){
+    worker=userById(assigneeValue.slice(5)); assignedTo=worker?worker.name:'Unassigned';
+  }else if(assigneeValue.startsWith('contractor:')){
+    const contractor=(DATA.contractors||[])[Number(assigneeValue.slice(11))]; assignedTo=contractor?contractor.name:'Unassigned';
+  }else if(assigneeValue.startsWith('team:')) assignedTo=assigneeValue.slice(5);
+  const assetText=document.getElementById('page-wo-asset').value.trim();
+  const asset=assetText?(DATA.assets||[]).find(x=>x.id===assetText||x.tag===assetText||x.assetTag===assetText||x.name===assetText):null;
+  const selectedPriority=document.getElementById('page-wo-priority').value;
+  const priority=selectedPriority==='Urgent'?'critical':selectedPriority.toLowerCase();
+  const record={
+    id:nextId('WO','wo'),status:'pending_approval',createdDate:new Date().toISOString().slice(0,10),gpsCheckin:null,
+    title,assetId:asset?asset.id:'',assetReference:asset?asset.tag||asset.assetTag||asset.id:assetText,
+    centreId:centre?centre.id:'',facilityName:centre?centre.name:facilityName,
+    type:'corrective',trade:document.getElementById('page-wo-trade').value,priority,
+    assignedUserId:worker?worker.id:'',assignedTo,assignedEmail:worker?(worker.email||''):'',
+    waNumber:worker?(worker.phone||''):'',location:document.getElementById('page-wo-location').value.trim()||'-',
+    dueDate:'',reportedBy:document.getElementById('page-wo-reported').value.trim(),description
+  };
+  DATA.workOrders.push(record);
+  await persist();
+  document.getElementById('create-work-order-page').reset();
+  renderWorkOrderCreatePage();
+  renderAll();
+  goToView('workorders');
+  showToast('Submitted - awaiting approval');
+  if(worker)void notifyAssignee(record.id);
 }
 function openWOModal(editId){
   const editing = editId ? DATA.workOrders.find(w=>w.id===editId) : null;
@@ -3074,6 +3158,7 @@ function renderAll(){
   renderCentres();
   renderAssets();
   renderWorkOrders();
+  renderWorkOrderCreatePage();
   renderPM();
   renderOpsManagement();
   renderProjects();
