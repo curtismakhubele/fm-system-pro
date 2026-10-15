@@ -393,6 +393,7 @@
         <div class="navitem" data-view="hq" data-roles="admin,hq"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><rect x="8" y="6.5" width="3" height="3"/><rect x="13" y="6.5" width="3" height="3"/><rect x="8" y="11.5" width="3" height="3"/><rect x="13" y="11.5" width="3" height="3"/><line x1="9" y1="21" x2="9" y2="17.5"/><line x1="15" y1="21" x2="15" y2="17.5"/></svg></span>HQ Platform<span class="badge" id="nav-hq-count">0</span></div>
         <div class="navitem" data-view="admin" data-roles="admin,superadmin"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 L20 6 V11 C20 16 16.5 19.5 12 21 C7.5 19.5 4 16 4 11 V6 Z"/></svg></span>Admin Platform<span class="badge" id="nav-admin-count">0</span></div>
         <div class="navitem" data-view="admin-settings" data-roles="admin,superadmin"><span class="navicon">⚙</span>App Admin Settings</div>
+        <div class="navitem" data-view="management" data-roles="admin,superadmin"><span class="navicon">⚙</span>Management System</div>
       </div>
       <div class="navgroup" data-roles="admin,hq,centre,technician">
         <div class="label" onclick="toggleNavGroup(this)">Sites<span class="chev">â–¾</span></div>
@@ -403,6 +404,8 @@
         <div class="navitem" data-view="assets" data-roles="admin,hq,centre,technician,intern"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 12.5 20.5a1.5 1.5 0 0 1-2.1 0L3 13V4h9z"/><circle cx="7.4" cy="7.4" r="1.4"/></svg></span>Assets<span class="badge" id="nav-assets-count">0</span></div>
         <div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
         <div class="navitem" data-view="maintenance" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.6"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.6"/></svg></span>Maintenance<span class="badge" id="nav-pm-count">0</span></div>
+        <div class="navitem" data-view="contractors" data-roles="admin,hq,centre"><span class="navicon">♙</span>Contractors &amp; Contracts<span class="badge" id="nav-contractor-count">0</span></div>
+        <div class="navitem" data-view="sla" data-roles="admin,hq,centre"><span class="navicon">◉</span>SLA Monitoring</div>
         <div class="navitem" data-view="projects" data-roles="admin,hq,centre"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h5l2 2.5h8A1.5 1.5 0 0 1 21 9v9.5A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z"/></svg></span>Projects<span class="badge" id="nav-proj-count">0</span></div>
       </div>
       <div class="navgroup" data-roles="admin,hq,centre,technician">
@@ -578,6 +581,29 @@
         <table><thead><tr><th>Asset</th><th>Task</th><th>Frequency</th><th>Last done</th><th>Next due</th><th>Assigned to</th><th></th></tr></thead>
         <tbody id="pm-body"></tbody></table>
         <div class="empty" id="pm-empty" style="display:none;"><div class="big">No PM schedules yet</div>Add a recurring task to keep assets running.</div>
+      </div>
+    </section>
+
+
+    <!-- CONTRACTORS & CONTRACTS -->
+    <section class="view" id="view-contractors">
+      <div class="topbar"><div><h1>Contractors &amp; Contracts</h1><div class="meta">Track service providers, contract references and compliance status</div></div><div class="topbar-actions"><button class="btn btn-accent" onclick="editOpsRecord('contractors')">+ Add contractor</button></div></div>
+      <div class="kpi-row" id="contractor-kpis"></div>
+      <div class="panel"><table><thead><tr><th>Provider</th><th>Trade</th><th>Contract reference</th><th>Compliance</th><th>Status</th><th></th></tr></thead><tbody id="contractor-body"></tbody></table><div class="empty" id="contractor-empty" style="display:none;"><div class="big">No contractors yet</div>Add a contractor and contract reference to start tracking service coverage.</div></div>
+    </section>
+    <!-- SLA MONITORING -->
+    <section class="view" id="view-sla">
+      <div class="topbar"><div><h1>SLA Monitoring</h1><div class="meta">Review response and resolution targets by priority</div></div><div class="topbar-actions"><button class="btn btn-accent" onclick="editOpsRecord('slaRules')">+ Add SLA rule</button></div></div>
+      <div class="kpi-row" id="sla-kpis"></div>
+      <div class="panel"><table><thead><tr><th>Priority</th><th>Response target</th><th>Resolution target</th><th>Use case</th><th></th></tr></thead><tbody id="sla-body"></tbody></table><div class="empty" id="sla-empty" style="display:none;"><div class="big">No SLA rules yet</div>Add response and resolution targets for each priority.</div><div class="note">SLA targets are reference rules. Live timers and breach notifications depend on operational timestamps and configured services.</div></div>
+    </section>
+    <!-- MANAGEMENT SYSTEM -->
+    <section class="view" id="view-management">
+      <div class="topbar"><div><h1>Management System</h1><div class="meta">Manage preventive maintenance, contractors and service level rules</div></div></div>
+      <div class="grid-2">
+        <div class="panel"><div class="panel-head"><div><h2>Preventive Maintenance</h2><div class="sub">Plans currently tracked in the maintenance register</div></div><button class="btn btn-accent btn-sm" onclick="goToView('maintenance');openPMModal()">+ Schedule task</button></div><div id="management-pm-summary"></div><button class="btn btn-ghost btn-sm" onclick="goToView('maintenance')">Open maintenance register →</button></div>
+        <div class="panel"><div class="panel-head"><div><h2>Contractors &amp; Contracts</h2><div class="sub">Provider and contract records</div></div><button class="btn btn-accent btn-sm" onclick="editOpsRecord('contractors')">+ Add contractor</button></div><div id="management-contractor-summary"></div><button class="btn btn-ghost btn-sm" onclick="goToView('contractors')">Manage contractors →</button></div>
+        <div class="panel"><div class="panel-head"><div><h2>SLA Monitoring</h2><div class="sub">Response and resolution targets</div></div><button class="btn btn-accent btn-sm" onclick="editOpsRecord('slaRules')">+ Add rule</button></div><div id="management-sla-summary"></div><button class="btn btn-ghost btn-sm" onclick="goToView('sla')">Manage SLA rules →</button></div>
       </div>
     </section>
 
@@ -914,6 +940,17 @@ function normalizeData(){
   if(!DATA.assets) DATA.assets = [];
   if(!DATA.workOrders) DATA.workOrders = [];
   if(!DATA.pmTasks) DATA.pmTasks = [];
+  if(!Array.isArray(DATA.contractors)) DATA.contractors = [
+    {name:'Electrical Contractor',trade:'Electrical',reference:'CTR-EL-026',compliance:'Verified',status:'Active'},
+    {name:'HVAC Contractor',trade:'HVAC',reference:'CTR-HV-014',compliance:'Renewal due',status:'Review'},
+    {name:'Plumbing Contractor',trade:'Plumbing',reference:'CTR-PL-019',compliance:'Verified',status:'Active'}
+  ];
+  if(!Array.isArray(DATA.slaRules)) DATA.slaRules = [
+    {priority:'Urgent',response:'1 hour',resolution:'4 hours',useCase:'Critical safety / outage'},
+    {priority:'High',response:'4 hours',resolution:'8 hours',useCase:'Major disruption'},
+    {priority:'Medium',response:'24 hours',resolution:'3 working days',useCase:'Routine repair'},
+    {priority:'Low',response:'72 hours',resolution:'10 working days',useCase:'Minor / planned work'}
+  ];
   if(!DATA.projects) DATA.projects = [];
   if(!DATA.incidents) DATA.incidents = [];
   if(!DATA.inspections) DATA.inspections = [];
@@ -926,7 +963,7 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], workOrders:[], pmTasks:[], projects:[], incidents:[], inspections:[], assetReports:[], doodleLinks:[], documents:[],
+    centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], doodleLinks:[], documents:[],
     internChecklists:{}, seq:{asset:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
@@ -2965,6 +3002,51 @@ document.addEventListener('click', (event)=>{
 });
 
 /* ---------- render all ---------- */
+
+const OPS_SCHEMAS={
+  contractors:{title:'Contractor / Contract',fields:[['name','Provider name'],['trade','Trade'],['reference','Contract reference'],['compliance','Compliance status'],['status','Contract status']]},
+  slaRules:{title:'SLA Rule',fields:[['priority','Priority'],['response','Response target'],['resolution','Resolution target'],['useCase','Use case / description']]}
+};
+function opsField(type,key,label,value){
+  const opts=type==='contractors'&&key==='trade'?['Electrical','Plumbing','HVAC','Civil / Building','Cleaning','Fire & Safety','Lifts & Escalators','Other']:
+    type==='contractors'&&key==='compliance'?['Verified','Renewal due','Documents missing','Pending review','Non-compliant']:
+    type==='contractors'&&key==='status'?['Active','Review','On Hold','Expired']:
+    type==='slaRules'&&key==='priority'?['Urgent','High','Medium','Low']:null;
+  const id='ops-'+key, safe=escapeHtml(value||'');
+  return opts?'<div class="field"><label>'+label+'</label><select id="'+id+'">'+opts.map(x=>'<option '+(x===value?'selected':'')+'>'+x+'</option>').join('')+'</select></div>':'<div class="field"><label>'+label+'</label><input id="'+id+'" value="'+safe+'" required></div>';
+}
+function editOpsRecord(type,index=-1){
+  const schema=OPS_SCHEMAS[type]; if(!schema)return;
+  const rows=DATA[type], item=index>=0?rows[index]:{};
+  const fields=schema.fields.map(([key,label])=>opsField(type,key,label,item[key])).join('');
+  openModal('<h3>'+(index>=0?'Edit ':'Add ')+schema.title+'</h3><div class="modal-sub">Saved with the facilities management records.</div>'+fields+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveOpsRecord(\''+type+'\','+index+')">Save record</button></div>');
+}
+async function saveOpsRecord(type,index){
+  const schema=OPS_SCHEMAS[type]; if(!schema)return;
+  const item={}; for(const [key] of schema.fields){const el=document.getElementById('ops-'+key);item[key]=el?.value.trim()||'';if(!item[key]){showToast('Complete all fields before saving');return;}}
+  if(index>=0) DATA[type][index]=item; else DATA[type].push(item);
+  await persist(); closeModal(); renderAll(); showToast('Record saved');
+}
+async function deleteOpsRecord(type,index){
+  if(!confirm('Delete this record?'))return;
+  DATA[type].splice(index,1); await persist(); renderAll(); showToast('Record deleted');
+}
+function renderOpsManagement(){
+  const cbody=document.getElementById('contractor-body'), sbody=document.getElementById('sla-body');
+  if(!cbody||!sbody)return;
+  const contractors=DATA.contractors||[], rules=DATA.slaRules||[];
+  document.getElementById('contractor-empty').style.display=contractors.length?'none':'block';
+  cbody.innerHTML=contractors.map((x,i)=>'<tr><td>'+escapeHtml(x.name)+'</td><td>'+escapeHtml(x.trade)+'</td><td>'+escapeHtml(x.reference)+'</td><td>'+escapeHtml(x.compliance)+'</td><td>'+escapeHtml(x.status)+'</td><td><button class="btn btn-ghost btn-sm" onclick="editOpsRecord(\'contractors\','+i+')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteOpsRecord(\'contractors\','+i+')">Delete</button></td></tr>').join('');
+  document.getElementById('sla-empty').style.display=rules.length?'none':'block';
+  sbody.innerHTML=rules.map((x,i)=>'<tr><td>'+escapeHtml(x.priority)+'</td><td>'+escapeHtml(x.response)+'</td><td>'+escapeHtml(x.resolution)+'</td><td>'+escapeHtml(x.useCase)+'</td><td><button class="btn btn-ghost btn-sm" onclick="editOpsRecord(\'slaRules\','+i+')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteOpsRecord(\'slaRules\','+i+')">Delete</button></td></tr>').join('');
+  const active=contractors.filter(x=>x.status==='Active').length, expiring=contractors.filter(x=>/renewal|review/i.test(x.compliance)).length;
+  document.getElementById('contractor-kpis').innerHTML=[['Contractors',contractors.length],['Active contracts',active],['Review required',expiring]].map(([l,v])=>'<div class="kpi"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>').join('');
+  document.getElementById('sla-kpis').innerHTML=[['Configured priorities',rules.length],['Work orders',DATA.workOrders.length],['Overdue maintenance',DATA.pmTasks.filter(p=>p.nextDue&&daysUntil(p.nextDue)<0).length]].map(([l,v])=>'<div class="kpi"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>').join('');
+  document.getElementById('management-pm-summary').innerHTML='<div class="list-simple">'+(DATA.pmTasks.length?DATA.pmTasks.slice(0,4).map(p=>'<div class="row"><strong>'+escapeHtml(p.task)+'</strong><span>'+escapeHtml(p.frequency)+' · '+escapeHtml(fmtDate(p.nextDue))+'</span></div>').join(''):'<div class="empty">No preventive maintenance plans yet.</div>')+'</div>';
+  document.getElementById('management-contractor-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+contractors.length+'</strong><span>contractor records</span></div><div class="row"><strong>'+active+'</strong><span>active contracts</span></div><div class="row"><strong>'+expiring+'</strong><span>records requiring review</span></div></div>';
+  document.getElementById('management-sla-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+rules.length+'</strong><span>SLA priority rules configured</span></div><div class="row"><strong>'+DATA.workOrders.length+'</strong><span>work orders in the register</span></div></div>';
+}
+
 function renderAll(){
   renderCentreFilterOptions();
   renderOverview();
@@ -2974,6 +3056,7 @@ function renderAll(){
   renderAssets();
   renderWorkOrders();
   renderPM();
+  renderOpsManagement();
   renderProjects();
   renderOHSA();
   renderReports();
