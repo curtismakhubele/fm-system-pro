@@ -3,6 +3,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const nodemailer = require('nodemailer');
 
 const ROOT = __dirname;
 /* Load local deployment settings without adding a runtime dependency. */
@@ -457,12 +458,26 @@ async function handle(req, res) {
       return respond(res,200,{report,model:deployment},apiHeaders);
     }catch(error){ return respond(res,502,{error:'AI report generation failed. Check model access and managed identity configuration.'},apiHeaders); }
   }
+  if(req.method==='POST' && url.pathname==='/api/notifications/email'){
+    const actor=requireUser(req,res,state);if(!actor)return;
+    if(!['admin','superadmin','hq'].includes(String(actor.role||'').toLowerCase()))return respond(res,403,{error:'Only HQ/admin can send assignment notifications.'},apiHeaders);
+    const host=String(process.env.SMTP_HOST||'').trim(),user=String(process.env.SMTP_USER||'').trim(),pass=String(process.env.SMTP_PASS||'');
+    const port=Number(process.env.SMTP_PORT||587),from=String(process.env.SMTP_FROM||user).trim();
+    if(!host||!user||!pass||!from)return respond(res,503,{error:'Email automation is not configured on this host.'},apiHeaders);
+    const body=await readJson(req),to=String(body.to||'').trim(),subject=String(body.subject||'').trim().slice(0,250),text=String(body.text||'').trim().slice(0,10000);
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!text)return respond(res,400,{error:'A valid recipient, subject and message are required.'},apiHeaders);
+    try{
+      const transporter=nodemailer.createTransport({host,port,secure:port===465,auth:{user,pass}});
+      await transporter.sendMail({from,to,subject,text});
+      return respond(res,200,{ok:true});
+    }catch(error){return respond(res,502,{error:'Email provider could not send the notification. Check SMTP settings.'},apiHeaders);}
+  }
   if(req.method==='POST' && url.pathname==='/api/notifications/whatsapp'){
     const actor=requireUser(req,res,state); if(!actor) return;
     const phoneNumberId=String(process.env.WHATSAPP_PHONE_NUMBER_ID||'').trim();
     const accessToken=String(process.env.WHATSAPP_ACCESS_TOKEN||'').trim();
-    const template=String(process.env.WHATSAPP_ASSIGNMENT_TEMPLATE||'').trim();
-    const version=String(process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0').trim();
+    const template=String(process.env.WHATSAPP_ASSIGNMENT_TEMPLATE||process.env.WHATSAPP_TEMPLATE_NAME||'').trim();
+    const version=String(process.env.WHATSAPP_GRAPH_API_VERSION||process.env.WHATSAPP_GRAPH_VERSION||'v23.0').trim();
     const language=String(process.env.WHATSAPP_TEMPLATE_LANGUAGE||'en').trim();
     if(!phoneNumberId||!accessToken||!template) return respond(res,503,{error:'WhatsApp automation is not configured on this host.'},apiHeaders);
     if(!/^\d+$/.test(phoneNumberId)||!/^v\d+\.\d+$/.test(version)) return respond(res,503,{error:'WhatsApp provider configuration is invalid.'},apiHeaders);
