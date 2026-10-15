@@ -1076,6 +1076,7 @@ const STATUS_PILL = {
   superadmin:['crit','Super Admin'], admin:['purple','Admin'], hq:['info','HQ'], centre:['warn','Centre Mgr'], technician:['good','Technician'], intern:['neutral','Intern'], viewer:['neutral','Viewer'], auditor:['info','Auditor'], active:['good','Active'], suspended:['crit','Suspended'], must_change:['warn','Change password']
 };
 function pill(key){ const [cls,label] = STATUS_PILL[key] || ['neutral', key]; return `<span class="pill ${cls}">${label}</span>`; }
+function workOrderPriorityPill(wo){ return wo && wo.priority==='critical' && wo.trade ? '<span class="pill crit">Urgent</span>' : pill(wo.priority); }
 function osmEmbed(lat,lng,zoomBox){
   const b = zoomBox || 0.01;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng-b}%2C${lat-b}%2C${lng+b}%2C${lat+b}&layer=mapnik&marker=${lat}%2C${lng}`;
@@ -2081,9 +2082,9 @@ function renderWorkOrders(){
     return `<tr>
       <td><span class="tag">${w.id}</span></td>
       <td>${w.title}${w.reportedByIntern ? '<div style="font-size:11px;color:var(--ink-soft);">via intern report - '+w.reportedByIntern+'</div>' : ''}</td>
-      <td>${asset?asset.name:'-'}</td><td>${c?c.name:'-'}</td>
+      <td>${asset?asset.name:(w.assetReference||'-')}</td><td>${c?c.name:(w.facilityName||'-')}</td>
       <td>${w.location||'-'}</td>
-      <td>${pill(w.priority)}</td>
+      <td>${workOrderPriorityPill(w)}</td>
       <td>${assignedCell}</td>
       <td>${renderWorkOrderContacts(w)}</td><td>${fmtDate(w.dueDate)}</td>
       <td>${gps}</td>
@@ -2348,7 +2349,7 @@ function renderOverview(){
 
   const upcoming = wos.filter(w=>w.status!=='completed').slice().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')).slice(0,6);
   document.getElementById('overview-wo-body').innerHTML = upcoming.length ? upcoming.map(w=>{ const asset = assetById(w.assetId);
-    return `<tr><td><span class="tag">${w.id}</span></td><td>${w.title}</td><td>${asset?asset.name:'-'}</td><td>${pill(w.priority)}</td><td>${fmtDate(w.dueDate)}</td><td>${pill(w.status)}</td></tr>`; }).join('') : `<tr><td colspan="6" style="color:var(--ink-soft);text-align:center;padding:20px;">No open work orders</td></tr>`;
+    return `<tr><td><span class="tag">${w.id}</span></td><td>${w.title}</td><td>${asset?asset.name:(w.assetReference||'-')}</td><td>${workOrderPriorityPill(w)}</td><td>${fmtDate(w.dueDate)}</td><td>${pill(w.status)}</td></tr>`; }).join('') : `<tr><td colspan="6" style="color:var(--ink-soft);text-align:center;padding:20px;">No open work orders</td></tr>`;
 
   const statusCounts = {operational:0, maintenance:0, down:0};
   assets.forEach(a=>{ statusCounts[a.status] = (statusCounts[a.status]||0)+1; });
@@ -2822,7 +2823,7 @@ function renderIntern(){
   const mine = DATA.workOrders.filter(w=>w.assignedTo===intern.name);
   document.getElementById('intern-wo-empty').style.display = mine.length===0 ? 'block' : 'none';
   body.innerHTML = mine.map(w=>{ const asset = assetById(w.assetId);
-    return `<tr><td><span class="tag">${w.id}</span></td><td>${w.title}</td><td>${asset?asset.name:'-'}</td><td>${pill(w.priority)}</td><td>${fmtDate(w.dueDate)}</td><td><span style="cursor:pointer;" onclick="cycleWOStatus('${w.id}')">${pill(w.status)}</span></td></tr>`;
+    return `<tr><td><span class="tag">${w.id}</span></td><td>${w.title}</td><td>${asset?asset.name:'-'}</td><td>${workOrderPriorityPill(w)}</td><td>${fmtDate(w.dueDate)}</td><td><span style="cursor:pointer;" onclick="cycleWOStatus('${w.id}')">${pill(w.status)}</span></td></tr>`;
   }).join('');
 
   const myReports = DATA.assetReports.filter(r=>r.internId===intern.id).slice().reverse();
