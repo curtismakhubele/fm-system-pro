@@ -1949,16 +1949,20 @@ async function saveWO(){
   }
 }
 function editWO(id){ openWOModal(id); }
-function approveWO(id){
-  const wo = DATA.workOrders.find(w=>w.id===id); if(!wo) return;
-  wo.status = 'open'; wo.approvedOn = new Date().toISOString().slice(0,10);
-  persist(); renderAll(); showToast('Approved - ' + wo.id + ' is now open');
+async function approveWO(id){
+  if(!isWorkOrderApprover()){showToast('Only HQ/admin can approve work orders');return;}
+  const wo=DATA.workOrders.find(w=>w.id===id);if(!wo||wo.status!=='pending_approval')return;
+  const worker=userById(wo.assignedUserId);
+  if(!worker||!worker.email||!whatsappNumberDigits(worker.phone)){showToast('Add the assigned worker email and WhatsApp number before approval');return;}
+  wo.status='open';wo.approvedOn=new Date().toISOString().slice(0,10);wo.approvedBy=currentDirectoryUser()?.name||state.role;
+  await persist();renderAll();showToast('Approved - '+wo.id+' is now visible to '+worker.name);await notifyAssignee(wo.id);
 }
-function denyWO(id){
-  const wo = DATA.workOrders.find(w=>w.id===id); if(!wo) return;
-  const reason = prompt('Reason for denying this work order (optional):') || '';
-  wo.status = 'denied'; wo.denyReason = reason;
-  persist(); renderAll(); showToast('Denied - ' + wo.id);
+async function denyWO(id){
+  if(!isWorkOrderApprover()){showToast('Only HQ/admin can deny work orders');return;}
+  const wo=DATA.workOrders.find(w=>w.id===id);if(!wo||wo.status!=='pending_approval')return;
+  const reason=prompt('Reason for denying this work order:');if(reason===null)return;
+  wo.status='denied';wo.denyReason=reason.trim()||'Please review and resubmit this request.';wo.returnedToReporter=true;wo.deniedOn=new Date().toISOString().slice(0,10);
+  await persist();renderAll();showToast('Returned to '+(wo.reportedByName||wo.reportedBy||'the reporter'));
 }
 function cycleWOStatus(id){
   const order = ['open','in_progress','completed','on_hold'];
@@ -1970,7 +1974,7 @@ function cycleWOStatus(id){
 async function notifyByEmail(id, automatic=false){
   const wo = DATA.workOrders.find(w=>w.id===id); if(!wo) return;
   const worker = userById(wo.assignedUserId);
-  const to = wo.assignedEmail || (worker ? worker.email : '') || DATA.msEmail || '';
+  const to = (worker&&worker.email)||wo.assignedEmail||'';
   if(!to){ showToast('No Microsoft email on file for this assignee'); return; }
   const asset = assetById(wo.assetId);
   const subject = `Work order ${wo.id}: ${wo.title}`;
@@ -2004,16 +2008,9 @@ async function notifyByWhatsApp(id){
   }catch(error){ showToast(error.message||'WhatsApp notification failed.'); }
 }
 async function notifyAssignee(id){
-  const settings=DATA.adminSettings||{}; const notifications=[];
-  if(settings.autoEmailAssignedPersonnel) notifications.push(new Promise(resolve=>{
-    setTimeout(async()=>{
-      try{ await notifyByEmail(id,true); }
-      catch(error){ showToast('Automatic email failed.'); }
-      resolve();
-    },5000);
-  }));
-  if(settings.autoWhatsAppAssignedPersonnel) notifications.push(notifyByWhatsApp(id));
-  await Promise.all(notifications);
+  const wo=DATA.workOrders.find(item=>item.id===id);if(!wo||wo.status!=='open')return;
+  const results=await Promise.allSettled([notifyByEmail(id,true),notifyByWhatsApp(id)]);
+  if(results.some(result=>result.status==='rejected'))showToast('Work order approved, but one or more notifications failed. Check integration settings.');
 }
 function openWorkOrderWhatsApp(id){
   const wo=DATA.workOrders.find(item=>item.id===id); if(!wo) return;
@@ -2076,7 +2073,9 @@ function renderWorkOrderContacts(wo){
 }
 function renderWorkOrders(){
   const body = document.getElementById('wo-body');
-  const filtered = DATA.workOrders.filter(w=>inFilter(w.centreId));
+  const me=currentDirectoryUser(),approver=isWorkOrderApprover();
+  const visibleOrders=approver?DATA.workOrders:(DATA.workOrders||[]).filter(order=>(me&&order.assignedUserId===me.id&&order.status!=='pending_approval'&&order.status!=='denied')||(me&&order.reportedByUserId===me.id&&(order.status==='denied'||order.returnedToReporter===true)));
+  const filtered = visibleOrders.filter(w=>inFilter(w.centreId));
   document.getElementById('nav-wo-count').textContent = DATA.workOrders.filter(w=>w.status!=='completed' && w.status!=='denied').length;
   if(filtered.length===0){ body.innerHTML=''; document.getElementById('wo-empty').style.display='block'; return; }
   document.getElementById('wo-empty').style.display='none';
@@ -2084,7 +2083,7 @@ function renderWorkOrders(){
     const asset = assetById(w.assetId); const c = centreById(w.centreId);
     const gps = w.gpsCheckin ? `<span class="gps-tag" title="${new Date(w.gpsCheckin.at).toLocaleString()}">ðŸ“ ${w.gpsCheckin.lat.toFixed(3)},${w.gpsCheckin.lng.toFixed(3)}</span>` : `<span class="gps-tag none" style="cursor:pointer;" onclick="gpsCheckin('${w.id}')">Check in</span>`;
     const assignedCell = `<span style="cursor:pointer;text-decoration:underline dotted;" onclick="editWO('${w.id}')" title="Click to edit / reassign">${w.assignedTo}</span>`;
-    const approvalButtons = w.status==='pending_approval' ? `
+    const approvalButtons = approver&&w.status==='pending_approval' ? `
       <button class="btn btn-accent btn-sm" style="margin-right:4px;" onclick="approveWO('${w.id}')">âœ“ Approve</button>
       <button class="btn btn-danger btn-sm" onclick="denyWO('${w.id}')">âœ• Deny</button>` : '';
     return `<tr>
