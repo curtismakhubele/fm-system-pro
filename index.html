@@ -1817,6 +1817,11 @@ function useWorkflowDraft(){
 function assetOptions(selectedId){
   return `<option value="">- None -</option>` + DATA.assets.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.name} (${a.id})</option>`).join('');
 }
+function currentDirectoryUser(){
+  const email=String(msAuth.user?.email||msAuth.account?.email||'').trim().toLowerCase();
+  return (DATA.users||[]).find(user=>user.id===state.myUserId)||(email?(DATA.users||[]).find(user=>String(user.email||'').trim().toLowerCase()===email):null)||null;
+}
+function isWorkOrderApprover(){return ['admin','superadmin','hq'].includes(String(state.role||'').toLowerCase());}
 function renderWorkOrderCreatePage(){
   const facility=document.getElementById('page-wo-facility');
   if(!facility)return;
@@ -1825,11 +1830,11 @@ function renderWorkOrderCreatePage(){
     ? '<option value="" disabled selected>Select a campus or facility</option>'+existing.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('')+'<option value="__other">Other facility</option>'
     : '<option value="site:UNISA Pretoria Campus" selected>UNISA Pretoria Campus</option><option value="site:UNISA Muckleneuk Campus">UNISA Muckleneuk Campus</option><option value="site:UNISA Sunnyside Campus">UNISA Sunnyside Campus</option><option value="site:UNISA Science Campus">UNISA Science Campus</option><option value="site:Other facility">Other facility</option>';
   const assignee=document.getElementById('page-wo-assignee');
-  const teams=['Internal Maintenance Team'];
-  assignee.innerHTML=teams.map(x=>'<option value="team:'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('')+
-    (DATA.contractors||[]).map((x,i)=>'<option value="contractor:'+i+'">'+escapeHtml(x.name)+'</option>').join('')+
-    '<option value="">Unassigned</option>'+
-    (DATA.users||[]).filter(x=>['technician','centre','admin','hq'].includes(x.role)).map(x=>'<option value="user:'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('');
+  const eligibleWorkers=(DATA.users||[]).filter(user=>['technician','centre'].includes(String(user.role||'').toLowerCase())&&user.email&&whatsappNumberDigits(user.phone));
+  assignee.required=true;
+  assignee.innerHTML='<option value="" disabled selected>Select an assigned worker</option>'+eligibleWorkers.map(user=>'<option value="user:'+escapeHtml(user.id)+'">'+escapeHtml(user.name)+' · '+escapeHtml(user.email)+'</option>').join('');
+  const assigneeHelp=document.getElementById('page-wo-assignee-help');
+  if(assigneeHelp)assigneeHelp.textContent=eligibleWorkers.length?'The request goes to HQ/admin first. The assigned worker sees it only after approval and receives email and WhatsApp notifications.':'No eligible workers yet. Add a technician with an email address and WhatsApp number in User Management.';
   const note=document.getElementById('page-wo-sla-note');
   if(note){
     const byPriority=Object.fromEntries((DATA.slaRules||[]).map(x=>[String(x.priority).toLowerCase(),x.response]));
@@ -1840,17 +1845,16 @@ async function saveWorkOrderPage(){
   const title=document.getElementById('page-wo-title').value.trim();
   const description=document.getElementById('page-wo-description').value.trim();
   const facilityValue=document.getElementById('page-wo-facility').value;
-  if(!title||!description||!facilityValue){showToast('Complete the required fields before creating the work order');return;}
+  const assigneeValue=document.getElementById('page-wo-assignee').value;
+  const reporter=currentDirectoryUser();
+  if(!title||!description||!facilityValue||!assigneeValue){showToast('Complete the required fields and select an assigned worker');return;}
+  if(!reporter){showToast('Your account must be linked to a user profile before submitting a request');return;}
   const facility=document.getElementById('page-wo-facility');
   const facilityName=facility.options[facility.selectedIndex]?.text||'';
   const centre=centreById(facilityValue);
-  const assigneeValue=document.getElementById('page-wo-assignee').value;
-  let assignedTo='Unassigned', worker=null;
-  if(assigneeValue.startsWith('user:')){
-    worker=userById(assigneeValue.slice(5)); assignedTo=worker?worker.name:'Unassigned';
-  }else if(assigneeValue.startsWith('contractor:')){
-    const contractor=(DATA.contractors||[])[Number(assigneeValue.slice(11))]; assignedTo=contractor?contractor.name:'Unassigned';
-  }else if(assigneeValue.startsWith('team:')) assignedTo=assigneeValue.slice(5);
+  const worker=assigneeValue.startsWith('user:')?userById(assigneeValue.slice(5)):null;
+  if(!worker||!worker.email||!whatsappNumberDigits(worker.phone)){showToast('Select a worker with both email and WhatsApp contact details');return;}
+  const assignedTo=worker.name;
   const assetText=document.getElementById('page-wo-asset').value.trim();
   const asset=assetText?(DATA.assets||[]).find(x=>x.id===assetText||x.tag===assetText||x.assetTag===assetText||x.name===assetText):null;
   const selectedPriority=document.getElementById('page-wo-priority').value;
@@ -1862,7 +1866,8 @@ async function saveWorkOrderPage(){
     type:'corrective',trade:document.getElementById('page-wo-trade').value,priority,
     assignedUserId:worker?worker.id:'',assignedTo,assignedEmail:worker?(worker.email||''):'',
     waNumber:worker?(worker.phone||''):'',location:document.getElementById('page-wo-location').value.trim()||'-',
-    dueDate:'',reportedBy:document.getElementById('page-wo-reported').value.trim(),description
+    dueDate:'',reportedBy:document.getElementById('page-wo-reported').value.trim()||reporter.name,
+    reportedByUserId:reporter.id,reportedByEmail:reporter.email||'',reportedByName:reporter.name,submittedOn:new Date().toISOString(),description
   };
   DATA.workOrders.push(record);
   await persist();
@@ -1870,8 +1875,7 @@ async function saveWorkOrderPage(){
   renderWorkOrderCreatePage();
   renderAll();
   goToView('workorders');
-  showToast('Submitted - awaiting approval');
-  if(worker)void notifyAssignee(record.id);
+  showToast('Submitted to HQ/admin for approval');
 }
 function openWOModal(editId){
   const editing = editId ? DATA.workOrders.find(w=>w.id===editId) : null;
