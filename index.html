@@ -330,6 +330,14 @@
   body.theme-white .role-switch select{background:rgba(255,255,255,.08);border-color:rgba(220,242,236,.14);color:#fff;}
   @media(max-width:960px){.app{grid-template-columns:1fr;}.sidebar{height:auto;max-height:none;position:relative;padding-bottom:14px;}main{padding:24px 20px 50px;}}
   @media(max-width:600px){main{padding:20px 14px 38px;}.topbar h1{font-size:23px;}.kpi-row{gap:10px;}.kpi{padding:12px;gap:9px;}.gauge{width:40px;height:40px;}.kpi-value{font-size:20px;}.search,.search-wrap{min-width:100%;}.topbar-actions{width:100%;}.centre-filter{flex:1;}}
+
+  #view-workorder-create .panel{padding:16px;}
+  #view-workorder-create .row2{column-gap:14px;row-gap:16px;}
+  #view-workorder-create .field label{text-transform:none;letter-spacing:0;color:var(--ink);font-size:12px;font-weight:600;}
+  #view-workorder-create .field input,#view-workorder-create .field select,#view-workorder-create .field textarea{background:#fff;border-color:#d6e0ed;}
+  #view-workorder-create .field textarea{min-height:110px;}
+  #view-workorder-create .work-order-create-submit{background:#10243d;color:#fff;}
+  @media(max-width:720px){#view-workorder-create .row2{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -593,7 +601,7 @@
           <div class="field" style="grid-column:1/-1;"><label for="page-wo-description">Work description *</label><textarea id="page-wo-description" required placeholder="Describe the fault, location, impact, access requirements and requested action." style="min-height:110px;"></textarea></div>
         </div>
         <div id="page-wo-sla-note" class="banner" style="margin-top:14px;background:#fff7e6;color:#805a14;border-color:#f1dfb5;font-size:12px;"></div>
-        <div class="modal-actions" style="margin-top:20px;"><button type="button" class="btn btn-ghost" onclick="goToView('workorders')">Cancel</button><button type="submit" class="btn btn-accent">Create Work Order →</button></div>
+        <div class="modal-actions" style="margin-top:20px;"><button type="button" class="btn btn-ghost" onclick="goToView('workorders')">Cancel</button><button type="submit" class="btn btn-accent work-order-create-submit">Create Work Order →</button></div>
       </form>
     </section>
 
