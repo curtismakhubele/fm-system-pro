@@ -1806,13 +1806,13 @@ async function generateWorkflowDraft(){
 }
 function useWorkflowDraft(){
   if(!workflowDraftResult) return;
-  closeModal(); openWOModal();
-  document.getElementById('f-title').value = workflowDraftResult.title;
-  document.getElementById('f-asset').value = workflowDraftResult.assetId || '';
-  document.getElementById('f-type').value = workflowDraftResult.type;
-  document.getElementById('f-priority').value = workflowDraftResult.priority;
-  document.getElementById('f-due').value = workflowDraftResult.dueDate;
-  document.getElementById('f-desc').value = `${workflowDraftResult.description}\n\nRecommended next steps:\n- ${workflowDraftResult.nextSteps.join('\n- ')}`;
+  closeModal(); goToView('workorder-create');
+  const asset=assetById(workflowDraftResult.assetId||'');
+  document.getElementById('page-wo-title').value=workflowDraftResult.title||'';
+  document.getElementById('page-wo-asset').value=asset?(asset.tag||asset.assetTag||asset.id):'';
+  const priority=String(workflowDraftResult.priority||'Medium').toLowerCase();
+  document.getElementById('page-wo-priority').value=priority==='critical'?'Urgent':priority.charAt(0).toUpperCase()+priority.slice(1);
+  document.getElementById('page-wo-description').value=`${workflowDraftResult.description||''}\n\nRecommended next steps:\n- ${(workflowDraftResult.nextSteps||[]).join('\n- ')}`;
 }
 function assetOptions(selectedId){
   return `<option value="">- None -</option>` + DATA.assets.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.name} (${a.id})</option>`).join('');
