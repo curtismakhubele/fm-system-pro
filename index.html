@@ -596,7 +596,7 @@
           <div class="field"><label for="page-wo-asset">Asset ID (if applicable)</label><input id="page-wo-asset" placeholder="e.g. HVAC-PTA-0042"></div>
           <div class="field"><label for="page-wo-trade">Trade / discipline *</label><select id="page-wo-trade" required><option>Electrical</option><option>Plumbing</option><option>HVAC / Air Conditioning</option><option>Civil / Building</option><option>Cleaning</option><option>Fire &amp; Safety</option><option>Lifts &amp; Escalators</option><option>Grounds &amp; Landscaping</option><option>IT / Access Control</option><option>Other</option></select></div>
           <div class="field"><label for="page-wo-priority">Priority *</label><select id="page-wo-priority" required><option>Medium</option><option>Low</option><option>High</option><option>Urgent</option></select></div>
-          <div class="field"><label for="page-wo-assignee">Responsible team / contractor</label><select id="page-wo-assignee"></select></div>
+          <div class="field"><label for="page-wo-assignee">Work must be assigned to *</label><select id="page-wo-assignee" required></select><small id="page-wo-assignee-help" class="form-help"></small></div>
           <div class="field"><label for="page-wo-reported">Reported by</label><input id="page-wo-reported" placeholder="Name or department"></div>
           <div class="field" style="grid-column:1/-1;"><label for="page-wo-description">Work description *</label><textarea id="page-wo-description" required placeholder="Describe the fault, location, impact, access requirements and requested action." style="min-height:110px;"></textarea></div>
         </div>
@@ -2086,13 +2086,13 @@ function renderWorkOrders(){
   body.innerHTML = filtered.slice().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')).map(w=>{
     const asset = assetById(w.assetId); const c = centreById(w.centreId);
     const gps = w.gpsCheckin ? `<span class="gps-tag" title="${new Date(w.gpsCheckin.at).toLocaleString()}">ðŸ“ ${w.gpsCheckin.lat.toFixed(3)},${w.gpsCheckin.lng.toFixed(3)}</span>` : `<span class="gps-tag none" style="cursor:pointer;" onclick="gpsCheckin('${w.id}')">Check in</span>`;
-    const assignedCell = `<span style="cursor:pointer;text-decoration:underline dotted;" onclick="editWO('${w.id}')" title="Click to edit / reassign">${w.assignedTo}</span>`;
+    const assignedCell = approver?`<span style="cursor:pointer;text-decoration:underline dotted;" onclick="editWO('${w.id}')" title="Click to edit / reassign">${escapeHtml(w.assignedTo||'Unassigned')}</span>`:`<span>${escapeHtml(w.assignedTo||'Unassigned')}</span>`;
     const approvalButtons = approver&&w.status==='pending_approval' ? `
       <button class="btn btn-accent btn-sm" style="margin-right:4px;" onclick="approveWO('${w.id}')">âœ“ Approve</button>
       <button class="btn btn-danger btn-sm" onclick="denyWO('${w.id}')">âœ• Deny</button>` : '';
     return `<tr>
       <td><span class="tag">${w.id}</span></td>
-      <td>${w.title}${w.reportedByIntern ? '<div style="font-size:11px;color:var(--ink-soft);">via intern report - '+w.reportedByIntern+'</div>' : ''}</td>
+      <td>${escapeHtml(w.title)}${w.reportedByIntern ? '<div style="font-size:11px;color:var(--ink-soft);">via intern report - '+escapeHtml(w.reportedByIntern)+'</div>' : ''}${w.status==='denied'&&me&&w.reportedByUserId===me.id?'<div style="font-size:11px;color:var(--crit);">Returned: '+escapeHtml(w.denyReason||'Review and resubmit')+'</div>':''}</td>
       <td>${asset?asset.name:(w.assetReference||'-')}</td><td>${c?c.name:(w.facilityName||'-')}</td>
       <td>${w.location||'-'}</td>
       <td>${workOrderPriorityPill(w)}</td>
@@ -2100,7 +2100,7 @@ function renderWorkOrders(){
       <td>${renderWorkOrderContacts(w)}</td><td>${fmtDate(w.dueDate)}</td>
       <td>${gps}</td>
       <td>${approvalButtons || `<span style="cursor:pointer;" onclick="cycleWOStatus('${w.id}')" title="Click to advance status">${pill(w.status)}</span>`}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="editWO('${w.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteWO('${w.id}')">Remove</button></td>
+      <td>${approver?'<button class="btn btn-ghost btn-sm" onclick="editWO(\''+w.id+'\')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteWO(\''+w.id+'\')">Remove</button>':''}</td>
     </tr>`;
   }).join('');
 }
