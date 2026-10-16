@@ -338,7 +338,7 @@
   #view-workorder-create .field textarea{min-height:110px;}
   #view-workorder-create .work-order-create-submit{background:#10243d;color:#fff;}
   @media(max-width:720px){#view-workorder-create .row2{grid-template-columns:1fr;}}
-</style>
+  .asset-register-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}.asset-register-stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}.asset-register-label{font-size:12px;color:var(--ink-soft)}.asset-register-stat strong{display:block;font:700 27px var(--font-display);margin:8px 0 1px}.asset-register-stat small,.asset-register-panel-head p{color:var(--ink-soft);font-size:11px}.asset-register-panel{overflow:hidden}.asset-register-panel-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}.asset-register-panel-head h2{font-size:16px;margin:0}.asset-register-panel-head p{margin:3px 0 0}.asset-register-categories{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px}.asset-register-category{border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:12px;text-align:left;color:var(--ink);cursor:pointer}.asset-register-category:hover,.asset-register-category.selected{border-color:var(--accent);background:var(--warn-bg)}.asset-register-category-icon{font-size:20px;margin-bottom:7px}.asset-register-category-name{font-weight:700}.asset-register-category-count{font:700 21px var(--font-display);margin-top:5px}.asset-register-category-caption{font-size:10px;color:var(--ink-soft)}.asset-register-filters{display:flex;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)}.asset-register-filters input,.asset-register-filters select{border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--panel);color:var(--ink);min-width:130px}.asset-register-filters input{flex:1;min-width:190px}.asset-register-table-wrap{overflow:auto}.asset-condition{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700}.asset-condition-good{background:var(--good-bg);color:var(--good)}.asset-condition-fair{background:var(--warn-bg);color:var(--warn)}.asset-condition-poor,.asset-condition-damaged{background:var(--crit-bg);color:var(--crit)}.asset-register-table-wrap td{vertical-align:middle}.asset-register-main{font-weight:650}.asset-register-sub{font-size:10px;color:var(--ink-soft);margin-top:2px}@media(max-width:1050px){.asset-register-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-register-categories{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.asset-register-categories{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px}.asset-register-stats{gap:8px}.asset-register-stat{padding:12px}.asset-register-stat strong{font-size:22px}.asset-register-panel-head{padding:13px}}</style>
 </head>
 <body>
 
@@ -544,20 +544,14 @@
 
     <!-- ASSETS -->
     <section class="view" id="view-assets">
-      <div class="topbar">
-        <div><h1>Asset Register</h1><div class="meta">Every tracked asset, its centre, location and status</div></div>
-        <div class="topbar-actions">
-          <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">â¬‡ Export CSV</button>
-          <button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">â¬† Import CSV</button>
-          <input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)">
-          <button class="btn btn-accent" onclick="openAssetModal()">+ Register asset</button>
-        </div>
-      </div>
-      <div class="panel">
-        <table><thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Centre</th><th>Location</th><th>Assigned worker</th><th>Status</th><th>Value</th><th></th></tr></thead>
-        <tbody id="assets-body"></tbody></table>
-        <div class="empty" id="assets-empty" style="display:none;"><div class="big">No assets yet</div>Register your first asset to start tracking it.</div>
-      </div>
+      <div class="topbar"><div><h1>Asset Register</h1><div class="meta">Manage, locate and count every maintainable asset across your centres.</div></div><div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">⇩ Export CSV</button><button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">⇧ Import CSV</button><input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)"><button class="btn btn-accent" onclick="openAssetModal()">＋ Register asset</button>
+      </div></div>
+      <div class="asset-register-stats"><div class="asset-register-stat"><div class="asset-register-label">Total asset units</div><strong id="asset-total-units">0</strong><small>Across visible centres</small></div><div class="asset-register-stat"><div class="asset-register-label">Asset records</div><strong id="asset-total-records">0</strong><small>Registered inventory lines</small></div><div class="asset-register-stat"><div class="asset-register-label">Operational units</div><strong id="asset-operational-units">0</strong><small>Marked operational</small></div><div class="asset-register-stat"><div class="asset-register-label">Need attention</div><strong id="asset-attention-units">0</strong><small>Faulty, poor or under maintenance</small></div></div>
+      <section class="panel asset-register-panel"><div class="asset-register-panel-head"><div><h2>Inventory by discipline</h2><p>Select a category to filter the asset register.</p></div><span class="muted" id="asset-centre-summary">All centres</span></div><div class="asset-register-categories" id="asset-categories"></div></section>
+      <section class="panel asset-register-panel"><div class="asset-register-panel-head"><div><h2>Asset inventory</h2><p>Quantities are totalled automatically from the records below.</p></div><button class="btn btn-ghost btn-sm" onclick="clearAssetFilters()">Clear filters</button></div>
+        <div class="asset-register-filters"><input id="asset-search" placeholder="Search asset, ID, room or centre…" aria-label="Search assets"><select id="asset-centre-filter" aria-label="Filter by centre"><option value="">All centres</option></select><select id="asset-discipline-filter" aria-label="Filter by discipline"><option value="">All disciplines</option><option>Electrical</option><option>Mechanical</option><option>Civil</option><option>Plumbing</option><option>General items</option></select><select id="asset-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option value="operational">Operational</option><option value="maintenance">Under maintenance</option><option value="down">Faulty</option><option value="decommissioned">Decommissioned</option></select></div>
+        <div class="table-wrap asset-register-table-wrap"><table><thead><tr><th>Asset / ID</th><th>Centre &amp; location</th><th>Discipline</th><th>Quantity</th><th>Condition</th><th>Status</th><th>Assigned worker</th><th>Value</th><th>Actions</th></tr></thead><tbody id="assets-body"></tbody></table><div class="empty" id="assets-empty" style="display:none;"><div class="big">No assets registered yet</div>Select <b>Register asset</b> to start building your inventory.</div></div></section>
     </section>
 
     <!-- WORK ORDERS -->
@@ -1667,116 +1661,40 @@ function renderCentres(){
 /* ---------- ASSETS ---------- */
 function isAssetAdmin(){ return ['admin','superadmin'].includes(state.role); }
 function requireAssetAdmin(){ if(!isAssetAdmin()){ showToast('Asset Register is read-only. Only Admin can edit assets in Admin Settings.'); return false; } return true; }
-function editAsset(id){
-  if(!requireAssetAdmin()) return;
-  const a=DATA.assets.find(x=>x.id===id); if(!a) return;
-  openModal(`
-    <h3>Edit asset</h3><div class="modal-sub">Admin-only asset register maintenance</div>
-    <div class="field"><label>Asset name</label><input id="e-name" value="${escapeAttr(a.name||'')}"></div>
-    <div class="row2"><div class="field"><label>Serial number / TAG</label><input id="e-serial" value="${escapeAttr(a.serialNumber||a.tag||'')}" required></div><div class="field"><label>Category</label><input id="e-cat" value="${escapeAttr(a.category||'')}"></div></div>
-    <div class="row2"><div class="field"><label>Centre</label><select id="e-centre">${centreOptions(a.centreId)}</select></div><div class="field"><label>Location</label><input id="e-loc" value="${escapeAttr(a.location||'')}"></div></div>
-    <div class="row2"><div class="field"><label>Status</label><select id="e-status"><option value="operational">Operational</option><option value="maintenance">In maintenance</option><option value="down">Down</option></select></div><div class="field"><label>Value (R)</label><input id="e-value" type="number" value="${Number(a.value)||0}"></div></div>
-    <div class="field"><label>Purchase date</label><input id="e-date" type="date" value="${escapeAttr(a.purchaseDate||'')}"></div>
-    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="updateAsset('${a.id}')">Save changes</button></div>
-  `);
-  document.getElementById('e-status').value=a.status||'operational';
+function assetFormMarkup(prefix,a={}){
+ const disciplines=['Electrical','Mechanical','Civil','Plumbing','General items'],discipline=a.discipline||(disciplines.includes(a.category)?a.category:'General items'),status=a.status||'operational',condition=a.condition||'Good';
+ const statuses=[['operational','Operational'],['maintenance','Under maintenance'],['down','Faulty'],['decommissioned','Decommissioned']];
+ return '<div class="row2"><div class="field"><label>Asset description *</label><input id="'+prefix+'-name" value="'+escapeAttr(a.name||'')+'" required></div><div class="field"><label>Discipline *</label><select id="'+prefix+'-discipline">'+disciplines.map(x=>'<option '+(x===discipline?'selected':'')+'>'+x+'</option>').join('')+'</select></div></div>'+
+ '<div class="row2"><div class="field"><label>Centre / campus *</label><select id="'+prefix+'-centre">'+centreOptions(a.centreId)+'</select></div><div class="field"><label>Quantity *</label><input id="'+prefix+'-quantity" type="number" min="1" step="1" value="'+Math.max(1,Number(a.quantity)||1)+'" required></div></div>'+
+ '<div class="row2"><div class="field"><label>Building / block</label><input id="'+prefix+'-building" value="'+escapeAttr(a.building||'')+'"></div><div class="field"><label>Floor / room / area</label><input id="'+prefix+'-location" value="'+escapeAttr(a.location||'')+'"></div></div>'+
+ '<div class="row2"><div class="field"><label>Condition</label><select id="'+prefix+'-condition">'+['Good','Fair','Poor','Damaged'].map(x=>'<option '+(x===condition?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="field"><label>Operational status</label><select id="'+prefix+'-status">'+statuses.map(([v,l])=>'<option value="'+v+'" '+(v===status?'selected':'')+'>'+l+'</option>').join('')+'</select></div></div>'+
+ '<div class="row2"><div class="field"><label>Asset tag / serial number</label><input id="'+prefix+'-serial" value="'+escapeAttr(a.serialNumber||a.tag||'')+'" placeholder="Optional for bulk items"></div><div class="field"><label>Date recorded</label><input id="'+prefix+'-recorded" type="date" value="'+escapeAttr(a.recordedDate||a.purchaseDate||'')+'"></div></div>'+
+ '<div class="row2"><div class="field"><label>Assigned worker</label><select id="'+prefix+'-worker"><option value="">- Unassigned -</option>'+userOptions(a.assignedWorkerId)+'</select></div><div class="field"><label>Value (R)</label><input id="'+prefix+'-value" type="number" min="0" value="'+(Number(a.value)||0)+'"></div></div><div class="field"><label>Notes</label><input id="'+prefix+'-notes" value="'+escapeAttr(a.notes||'')+'"></div>';
 }
-function escapeAttr(v){ return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function updateAsset(id){
-  if(!requireAssetAdmin()) return;
-  const a=DATA.assets.find(x=>x.id===id); if(!a) return;
-  const serial=document.getElementById('e-serial').value.trim();
-  if(!serial){showToast('Serial number is required because it is the asset TAG');return;}
-  if(DATA.assets.some(x=>x.id!==id && String(x.serialNumber||x.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG is already registered');return;}
-  Object.assign(a,{name:document.getElementById('e-name').value.trim(),serialNumber:serial,tag:serial,category:document.getElementById('e-cat').value.trim()||'Uncategorized',centreId:document.getElementById('e-centre').value,location:document.getElementById('e-loc').value.trim(),status:document.getElementById('e-status').value,value:Number(document.getElementById('e-value').value)||0,purchaseDate:document.getElementById('e-date').value||''});
-  persist();closeModal();renderAll();showToast('Asset updated');
-}
-function openAssetModal(){
-  openModal(`
-    <h3>Register asset</h3><div class="modal-sub">Add a new tracked facility asset</div>
-    <div class="field"><label>Asset name</label><input id="f-name" placeholder="e.g. Rooftop AHU 2"></div><div class="field"><label>Serial number / TAG (required)</label><input id="f-serial" placeholder="Enter manufacturer serial number" required></div>
-    <div class="row2">
-      <div class="field"><label>Category</label><input id="f-cat" placeholder="e.g. HVAC"></div>
-      <div class="field"><label>Centre</label><select id="f-centre">${centreOptions()}</select></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label>Location within centre</label><input id="f-loc" placeholder="e.g. Roof, Basement"></div>
-      <div class="field"><label>Status</label><select id="f-status"><option value="operational">Operational</option><option value="maintenance">In maintenance</option><option value="down">Down</option></select></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label>Value (R)</label><input id="f-value" type="number" placeholder="0"></div>
-      <div class="field"><label>Purchase date</label><input id="f-date" type="date"></div>
-    </div>
-    <div class="field"><label>Assigned worker</label><select id="f-worker"><option value="">- Unassigned -</option>${userOptions()}</select></div>
-    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAsset()">Register asset</button></div>
-  `);
-}
-function saveAsset(){
-  if(!requireAssetAdmin()) return;
-  const name = document.getElementById('f-name').value.trim();
-  const serialNumber = document.getElementById('f-serial').value.trim();
-  if(!serialNumber){ showToast('Serial number is required and will be used as the TAG'); return; }
-  if(DATA.assets.some(a=>String(a.serialNumber||a.tag||'').toLowerCase()===serialNumber.toLowerCase())){ showToast('That serial number/TAG already exists'); return; }
-  if(!name){ showToast('Asset name is required'); return; }
-  DATA.assets.push({
-    id: nextId('AST','asset'), name, serialNumber, tag:serialNumber,
-    category: document.getElementById('f-cat').value.trim() || 'Uncategorized',
-    centreId: document.getElementById('f-centre').value,
-    location: document.getElementById('f-loc').value.trim() || '-',
-    status: document.getElementById('f-status').value,
-    value: Number(document.getElementById('f-value').value) || 0,
-    purchaseDate: document.getElementById('f-date').value || '',
-    assignedWorkerId: document.getElementById('f-worker').value || ''
-  });
-  persist(); closeModal(); renderAll(); showToast('Asset registered');
-}
+function editAsset(id){if(!requireAssetAdmin())return;const a=DATA.assets.find(x=>x.id===id);if(!a)return;openModal('<h3>Edit asset</h3><div class="modal-sub">Update the shared asset record</div>'+assetFormMarkup('e',a)+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="updateAsset(\''+id+'\')">Save changes</button></div>');}
+function escapeAttr(v){return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function updateAsset(id){if(!requireAssetAdmin())return;const a=DATA.assets.find(x=>x.id===id);if(!a)return;const serial=document.getElementById('e-serial').value.trim(),name=document.getElementById('e-name').value.trim();if(!name){showToast('Asset description is required');return;}if(serial&&DATA.assets.some(x=>x.id!==id&&String(x.serialNumber||x.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG is already registered');return;}const discipline=document.getElementById('e-discipline').value,recorded=document.getElementById('e-recorded').value||'';Object.assign(a,{name,serialNumber:serial,tag:serial||'',discipline,category:discipline,centreId:document.getElementById('e-centre').value,quantity:Math.max(1,Math.floor(Number(document.getElementById('e-quantity').value)||1)),building:document.getElementById('e-building').value.trim(),location:document.getElementById('e-location').value.trim()||'-',condition:document.getElementById('e-condition').value,status:document.getElementById('e-status').value,value:Number(document.getElementById('e-value').value)||0,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('e-notes').value.trim(),assignedWorkerId:document.getElementById('e-worker').value||''});persist();closeModal();renderAll();showToast('Asset updated');}
+function openAssetModal(){if(!requireAssetAdmin())return;openModal('<h3>Register asset</h3><div class="modal-sub">Add a maintainable asset to the shared register</div>'+assetFormMarkup('f')+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAsset()">Register asset</button></div>');}
+function saveAsset(){if(!requireAssetAdmin())return;const name=document.getElementById('f-name').value.trim(),serial=document.getElementById('f-serial').value.trim();if(!name){showToast('Asset description is required');return;}if(serial&&DATA.assets.some(a=>String(a.serialNumber||a.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG already exists');return;}const discipline=document.getElementById('f-discipline').value,recorded=document.getElementById('f-recorded').value||'';DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial||'',category:discipline,discipline,centreId:document.getElementById('f-centre').value,quantity:Math.max(1,Math.floor(Number(document.getElementById('f-quantity').value)||1)),building:document.getElementById('f-building').value.trim(),location:document.getElementById('f-location').value.trim()||'-',condition:document.getElementById('f-condition').value,status:document.getElementById('f-status').value,value:Number(document.getElementById('f-value').value)||0,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('f-notes').value.trim(),assignedWorkerId:document.getElementById('f-worker').value||''});persist();closeModal();renderAll();showToast('Asset registered');}
 function deleteAsset(id){ if(!requireAssetAdmin()) return; DATA.assets = DATA.assets.filter(a=>a.id!==id); persist(); renderAll(); showToast('Asset removed'); }
-function exportAssetsCSV(){
-  const cols = [ {key:'serialNumber',label:'Tag / Serial Number', get:(a)=>a.serialNumber||a.tag||a.id}, {key:'name',label:'Name'}, {key:'category',label:'Category'},
-    {key:'centre',label:'Centre', get:(a)=>(centreById(a.centreId)||{}).name||''},
-    {key:'location',label:'Location'}, {key:'status',label:'Status'}, {key:'value',label:'Value'},
-    {key:'purchaseDate',label:'Purchase Date'},
-    {key:'worker',label:'Assigned Worker', get:(a)=>(userById(a.assignedWorkerId)||{}).name||''} ];
-  downloadText('assets.csv', toCSV(cols, DATA.assets));
-}
-function importAssetsCSV(event){
-  readImportedFile(event, (text)=>{
-    const rows = parseCSV(text); let count=0;
-    const validStatus = ['operational','maintenance','down'];
-    rows.forEach(r=>{
-      const name = r.Name||r.name; if(!name) return;
-      const centre = DATA.centres.find(c=>c.name === (r.Centre||r.centre));
-      const worker = DATA.users.find(u=>u.name === (r['Assigned Worker']||r.assignedWorker));
-      const statusRaw = (r.Status||r.status||'operational').toLowerCase();
-      DATA.assets.push({ id: nextId('AST','asset'), name,
-        category: r.Category||r.category||'Uncategorized', centreId: centre?centre.id:'',
-        location: r.Location||r.location||'-', status: validStatus.includes(statusRaw)?statusRaw:'operational',
-        value: Number(r.Value||r.value)||0, purchaseDate: r['Purchase Date']||r.purchaseDate||'',
-        assignedWorkerId: worker?worker.id:'' });
-      count++;
-    });
-    persist(); renderAll(); showToast(count + ' assets imported');
-  });
-}
+function exportAssetsCSV(){const cols=[{key:'tag',label:'Tag / Serial Number',get:a=>a.serialNumber||a.tag||a.id},{key:'name',label:'Asset description'},{key:'centre',label:'Centre',get:a=>(centreById(a.centreId)||{}).name||''},{key:'discipline',label:'Discipline',get:a=>a.discipline||a.category||''},{key:'quantity',label:'Quantity',get:a=>Math.max(1,Number(a.quantity)||1)},{key:'building',label:'Building / block'},{key:'location',label:'Floor / Room / Area'},{key:'condition',label:'Condition'},{key:'status',label:'Operational status',get:a=>assetStatusLabel(a.status)},{key:'worker',label:'Assigned Worker',get:a=>(userById(a.assignedWorkerId)||{}).name||''},{key:'value',label:'Value'},{key:'purchaseDate',label:'Date recorded'},{key:'notes',label:'Notes'}];downloadText('pid-fm-asset-register.csv',toCSV(cols,visibleAssetRecords()));}
+function importAssetsCSV(event){readImportedFile(event,text=>{const rows=parseCSV(text);let count=0;rows.forEach(r=>{const name=r['Asset description']||r.Name||r.name;if(!name)return;const centre=DATA.centres.find(c=>c.name===(r.Centre||r.centre)),worker=DATA.users.find(u=>u.name===(r['Assigned Worker']||r.assignedWorker));const raw=String(r['Operational status']||r.Status||r.status||'operational').toLowerCase(),status=raw.includes('decommission')?'decommissioned':raw.includes('maint')?'maintenance':raw.includes('fault')||raw==='down'?'down':'operational',discipline=r.Discipline||r.discipline||r.Category||r.category||'General items',serial=r['Tag / Serial Number']||r.tag||r.serialNumber||'';DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial,category:discipline,discipline,centreId:centre?centre.id:'',quantity:Math.max(1,Math.floor(Number(r.Quantity||r.quantity)||1)),building:r['Building / block']||r.building||'',location:r['Floor / Room / Area']||r.Location||r.location||'-',condition:r.Condition||r.condition||'Good',status,value:Number(r.Value||r.value)||0,purchaseDate:r['Date recorded']||r['Purchase Date']||r.purchaseDate||'',recordedDate:r['Date recorded']||r.purchaseDate||'',notes:r.Notes||r.notes||'',assignedWorkerId:worker?worker.id:''});count++;});persist();renderAll();showToast(count+' assets imported');});}
+const ASSET_DISCIPLINES=[{name:'Electrical',icon:'⚡',desc:'Plugs, lights, switches, DBs'},{name:'Mechanical',icon:'❄',desc:'Air conditioners, pumps, fans'},{name:'Civil',icon:'🏢',desc:'Doors, roofs, floors, walls'},{name:'Plumbing',icon:'🚰',desc:'Taps, toilets, pipes, valves'},{name:'General items',icon:'📷',desc:'Cameras, alarms, furniture'}];let assetRegisterDiscipline='';
+function assetStatusLabel(s){return ({operational:'Operational',maintenance:'Under maintenance',down:'Faulty',decommissioned:'Decommissioned'})[s]||s||'Operational';}
+function assetConditionClass(c){return ({Good:'asset-condition-good',Fair:'asset-condition-fair',Poor:'asset-condition-poor',Damaged:'asset-condition-damaged'})[c]||'asset-condition-fair';}
+function assetRecordUnits(a){return Math.max(1,Math.floor(Number(a.quantity)||1));}
+function visibleAssetRecords(){const centre=document.getElementById('asset-centre-filter')?.value||'';return DATA.assets.filter(a=>inFilter(a.centreId)&&(!centre||a.centreId===centre));}
 function renderAssets(){
-  const body = document.getElementById('assets-body');
-  const filtered = DATA.assets.filter(a=>inFilter(a.centreId));
-  document.getElementById('nav-assets-count').textContent = DATA.assets.length;
-  if(filtered.length===0){ body.innerHTML=''; document.getElementById('assets-empty').style.display='block'; return; }
-  document.getElementById('assets-empty').style.display='none';
-  body.innerHTML = filtered.map(a=>{
-    const c = centreById(a.centreId);
-    const worker = userById(a.assignedWorkerId);
-    return `<tr>
-      <td><span class="tag">${escapeAttr(a.serialNumber||a.tag||a.id)}</span></td><td>${a.name}</td><td>${a.category}</td>
-      <td>${c?c.name:'-'}</td><td>${a.location}</td>
-      <td>${worker ? worker.name : '<span style="color:var(--ink-soft);">Unassigned</span>'}</td>
-      <td>${pill(a.status)}</td>
-      <td style="font-family:var(--font-mono);">${fmtMoney(a.value)}</td>
-      <td>${isAssetAdmin()?`<button class="btn btn-ghost btn-sm" onclick="editAsset('${a.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteAsset('${a.id}')">Remove</button>`:'<span class="pill neutral">View only</span>'}</td>
-    </tr>`;
-  }).join('');
+ const body=document.getElementById('assets-body');if(!body)return;const allowed=DATA.assets.filter(a=>inFilter(a.centreId)),filter=document.getElementById('asset-centre-filter'),old=filter?.value||'',centres=DATA.centres.filter(c=>allowed.some(a=>a.centreId===c.id)).sort((a,b)=>a.name.localeCompare(b.name));if(filter){filter.innerHTML='<option value="">All centres</option>'+centres.map(c=>'<option value="'+escapeAttr(c.id)+'">'+escapeHtml(c.name)+'</option>').join('');if(centres.some(c=>c.id===old))filter.value=old;}
+ const centre=filter?.value||'',q=(document.getElementById('asset-search')?.value||'').trim().toLowerCase(),df=document.getElementById('asset-discipline-filter'),discipline=df?.value||assetRegisterDiscipline,status=document.getElementById('asset-status-filter')?.value||'',centreRecords=allowed.filter(a=>!centre||a.centreId===centre),records=centreRecords.filter(a=>{const d=a.discipline||a.category||'General items',text=[a.id,a.serialNumber,a.tag,a.name,a.category,d,a.building,a.location,a.notes,(centreById(a.centreId)||{}).name].join(' ').toLowerCase();return(!q||text.includes(q))&&(!discipline||d===discipline)&&(!status||a.status===status);}),total=items=>items.reduce((n,a)=>n+assetRecordUnits(a),0);
+ document.getElementById('nav-assets-count').textContent=allowed.length;document.getElementById('asset-total-units').textContent=total(allowed).toLocaleString();document.getElementById('asset-total-records').textContent=allowed.length.toLocaleString();document.getElementById('asset-operational-units').textContent=total(allowed.filter(a=>a.status==='operational')).toLocaleString();document.getElementById('asset-attention-units').textContent=total(allowed.filter(a=>['down','maintenance'].includes(a.status)||['Poor','Damaged'].includes(a.condition))).toLocaleString();document.getElementById('asset-centre-summary').textContent=centres.find(c=>c.id===centre)?.name||'All centres';
+ document.getElementById('asset-categories').innerHTML=ASSET_DISCIPLINES.map(d=>{const rows=centreRecords.filter(a=>(a.discipline||a.category||'General items')===d.name);return'<button class="asset-register-category '+(discipline===d.name?'selected':'')+'" type="button" data-asset-discipline="'+d.name+'"><div class="asset-register-category-icon">'+d.icon+'</div><div class="asset-register-category-name">'+d.name+'</div><div class="asset-register-category-count">'+total(rows).toLocaleString()+'</div><div class="asset-register-category-caption">'+rows.length+' inventory records</div><div class="asset-register-category-caption">'+d.desc+'</div></button>';}).join('');
+ document.querySelectorAll('[data-asset-discipline]').forEach(b=>b.onclick=()=>{assetRegisterDiscipline=assetRegisterDiscipline===b.dataset.assetDiscipline?'':b.dataset.assetDiscipline;if(df)df.value='';renderAssets();});
+ body.innerHTML=records.map(a=>{const c=centreById(a.centreId),w=userById(a.assignedWorkerId),condition=a.condition||'Good';return'<tr><td><div class="asset-register-main">'+escapeHtml(a.name)+'</div><div class="asset-register-sub">'+escapeHtml(a.serialNumber||a.tag||a.id)+(a.notes?' · '+escapeHtml(a.notes):'')+'</div></td><td><div>'+escapeHtml(c?.name||'-')+'</div><div class="asset-register-sub">'+escapeHtml([a.building,a.location].filter(Boolean).join(' · ')||'Location not specified')+'</div></td><td>'+escapeHtml(a.discipline||a.category||'General items')+'</td><td><b>'+assetRecordUnits(a).toLocaleString()+'</b></td><td><span class="asset-condition '+assetConditionClass(condition)+'">'+escapeHtml(condition)+'</span></td><td>'+pill(a.status||'operational')+'</td><td>'+escapeHtml(w?.name||'Unassigned')+'</td><td style="font-family:var(--font-mono);">'+fmtMoney(a.value)+'</td><td>'+(isAssetAdmin()?'<button class="btn btn-ghost btn-sm" onclick="editAsset(\''+a.id+'\')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteAsset(\''+a.id+'\')">Remove</button>':'<span class="pill neutral">View only</span>')+'</td></tr>';}).join('');
+ document.getElementById('assets-empty').style.display=records.length?'none':'block';
 }
+function clearAssetFilters(){['asset-search','asset-centre-filter','asset-discipline-filter','asset-status-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});assetRegisterDiscipline='';renderAssets();}
+document.addEventListener('input',e=>{if(e.target?.id==='asset-search')renderAssets();});document.addEventListener('change',e=>{if(['asset-centre-filter','asset-discipline-filter','asset-status-filter'].includes(e.target?.id)){if(e.target.id==='asset-discipline-filter'&&e.target.value)assetRegisterDiscipline='';renderAssets();}});
 
 /* ---------- WORK ORDERS ---------- */
 let workflowDraftResult = null;
