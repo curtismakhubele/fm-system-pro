@@ -723,7 +723,7 @@
     <section class="view" id="view-reports">
       <div class="topbar"><div><h1>Reports</h1><div class="meta">Rolled-up view generated live from your data</div></div></div>
       <div class="panel">
-        <div class="panel-head"><div><h2>PID Report</h2><div class="sub">OAU-PID facilities programme review</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download report</button></div></div>
+        <div class="panel-head"><div><h2>PID Report</h2><div class="sub">OAU-PID facilities programme review</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download Word document</button></div></div>
         <div class="field"><label for="programme-report-source">Current report / review material</label><textarea id="programme-report-source" rows="6" placeholder="Add the latest review findings, completed work, issues, dates and evidence. The programme introduction is inserted automatically.">OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.</textarea><small style="color:var(--ink-soft);">Include current findings and evidence. The report will not claim progress or outcomes that are not provided.</small></div>
         <p id="programme-report-status" role="status" style="color:var(--ink-soft);font-size:12px;"></p>
         <div id="programme-report-output"></div>
@@ -2959,6 +2959,8 @@ const PROGRAMME_REPORT_SECTIONS=['Executive Summary','Introduction','Previous Re
 const PROGRAMME_REPORT_INTRODUCTION='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
 let programmeReportSections=[];
 let programmeReportResult=null;
+let programmeReportWordBlob=null;
+let programmeReportWordName='PID-Report.docx';
 async function generateProgrammeReport(){
   const button=document.getElementById('generate-programme-report'),status=document.getElementById('programme-report-status');
   const source=document.getElementById('programme-report-source').value.trim(),output=document.getElementById('programme-report-output');
@@ -2972,20 +2974,52 @@ async function generateProgrammeReport(){
     programmeReportResult=result.report;programmeReportSections=PROGRAMME_REPORT_SECTIONS.filter(section=>typeof programmeReportResult[section]==='string');
     const generatedAt=new Date().toISOString();
     if(!Array.isArray(DATA.programmeReports))DATA.programmeReports=[];
-    DATA.programmeReports.push({id:'PIDR-'+Date.now(),generatedAt,source,report:programmeReportResult});
+    const reportId='PIDR-'+Date.now();
+    DATA.programmeReports.push({id:reportId,generatedAt,source,report:programmeReportResult});
     if(DATA.programmeReports.length>30)DATA.programmeReports=DATA.programmeReports.slice(-30);
     await persist();
     output.innerHTML=programmeReportSections.map(section=>'<section style="border-top:1px solid var(--border);padding:14px 0 2px;"><h3 style="font-size:14px;margin:0 0 6px;">'+escapeHtml(section)+'</h3><p style="white-space:pre-wrap;margin:0;color:var(--ink-soft);line-height:1.6;">'+escapeHtml(programmeReportResult[section])+'</p></section>').join('');
     document.getElementById('download-programme-report').style.display='';
     const comparison=previousReport?' Compared with the report generated '+new Date(previousReport.generatedAt).toLocaleString()+'.':' No earlier PID Report was available for comparison.';
-    status.textContent='PID Report generated with '+result.model+'.'+comparison+' Review the evidence before issue.';
+    status.textContent='PID Report generated with '+result.model+'.'+comparison+' Creating the Word document...';
+    try{
+      const word=await createAndStorePidReportWord(programmeReportResult,generatedAt,reportId);
+      programmeReportWordBlob=word.blob;programmeReportWordName=word.filename;
+      document.getElementById('download-programme-report').style.display='';
+      status.textContent='Full PID Report generated and stored in PID Cloud Documents as a Word file ('+word.storageLabel+').'+comparison+' Review the evidence before issue.';
+    }catch(wordError){
+      status.textContent='PID Report generated and saved in report history, but the Word document could not be stored: '+(wordError.message||'Document storage unavailable.');
+    }
   }catch(error){status.textContent=error.message||'PID Report generation failed.';}
   finally{button.disabled=false;button.textContent='Generate PID Report';}
 }
+async function createAndStorePidReportWord(report,generatedAt,reportId){
+  const response=await apiFetch('/api/reports/pid-report/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report,generatedAt})});
+  if(!response.ok){let message='Could not create the Word document.';try{message=(await response.json()).error||message}catch(e){}throw new Error(message);}
+  const blob=await response.blob(),mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const filename='PID-Report-'+new Date(generatedAt).toISOString().slice(0,10)+'-'+reportId+'.docx';
+  if(documentLibraryBytes()+blob.size>DOC_LIBRARY_CAPACITY_BYTES)throw new Error('The PID Cloud document library limit would be exceeded.');
+  let documentRecord=null,storageLabel='app document library';
+  if(msAuth.account&&msAuth.canWriteFiles){
+    const uploaded=await trySaveToSharePoint(filename,blob,mime);
+    if(uploaded.ok){
+      documentRecord={id:nextId('DOC','doc'),name:filename,mimeType:mime,sizeKB:Math.ceil(blob.size/1024),sizeBytes:blob.size,storage:'sharepoint',webUrl:uploaded.webUrl,dataUrl:null,centreId:'',addedDate:generatedAt.slice(0,10)};
+      storageLabel='connected SharePoint / OneDrive';
+    }
+  }
+  if(!documentRecord){
+    if(blob.size>DOC_LOCAL_LIMIT_BYTES)throw new Error('Connect Microsoft storage in Settings to save this Word file to PID Cloud.');
+    const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+    for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+    documentRecord={id:nextId('DOC','doc'),name:filename,mimeType:mime,sizeKB:Math.ceil(blob.size/1024),sizeBytes:blob.size,storage:'embedded',webUrl:null,dataUrl:'data:'+mime+';base64,'+btoa(binary),centreId:'',addedDate:generatedAt.slice(0,10)};
+  }
+  DATA.documents.push(documentRecord);await persist();renderDocuments();
+  return {blob,filename,storageLabel};
+}
 function downloadProgrammeReport(){
-  if(!programmeReportResult) return;
-  const markdown=programmeReportSections.map(section=>`## ${section}\n\n${programmeReportResult[section]}`).join('\n\n');
-  downloadText(`PID-Report-${new Date().toISOString().slice(0,10)}.md`,markdown,'text/markdown;charset=utf-8');
+  if(!programmeReportWordBlob)return;
+  const url=URL.createObjectURL(programmeReportWordBlob),link=document.createElement('a');
+  link.href=url;link.download=programmeReportWordName;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
 }
 
 /* ---------- SETTINGS / EMAIL / WHATSAPP ---------- */
