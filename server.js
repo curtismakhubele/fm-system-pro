@@ -488,6 +488,7 @@ async function handle(req, res) {
     if(!endpoint||!deployment)return respond(res,503,{error:'The worker AI assistant is not configured on this host. Configure the Azure OpenAI endpoint and deployment in the host settings.'},apiHeaders);
     let appData={};
     try{appData=JSON.parse(state.storage['pid-fms-data-v2']||'{}');}catch(error){appData={};}
+    appData=filterAppDataForUser(user,appData);
     const directory=(appData.users||[]).find(item=>String(item.email||'').toLowerCase()===String(user.email||'').toLowerCase());
     const profileId=directory&&directory.id,approver=['admin','superadmin','hq'].includes(String(user.role||'').toLowerCase());
     const ownOrders=(appData.workOrders||[]).filter(order=>approver||order.assignedUserId===profileId||order.reportedByUserId===profileId).slice(-20);
