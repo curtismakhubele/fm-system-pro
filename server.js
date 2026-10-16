@@ -329,6 +329,57 @@ async function azureOpenAIHeaders(){
   return {Authorization:`Bearer ${token.access_token}`};
 }
 
+function xmlEscape(value){
+  return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function wordParagraph(text,style='Normal'){
+  const content=xmlEscape(text);
+  return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`;
+}
+function crc32(buffer){
+  let crc=0xffffffff;
+  for(const byte of buffer){crc^=byte;for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}
+  return (crc^0xffffffff)>>>0;
+}
+function zipStore(entries){
+  const local=[],central=[];let offset=0;
+  for(const [name,value] of entries){
+    const filename=Buffer.from(name,'utf8'),data=Buffer.from(value,'utf8'),crc=crc32(data);
+    const localHeader=Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50,0);localHeader.writeUInt16LE(20,4);localHeader.writeUInt16LE(0x0800,6);localHeader.writeUInt16LE(0,8);
+    localHeader.writeUInt32LE(crc,14);localHeader.writeUInt32LE(data.length,18);localHeader.writeUInt32LE(data.length,22);localHeader.writeUInt16LE(filename.length,26);
+    local.push(localHeader,filename,data);
+    const centralHeader=Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50,0);centralHeader.writeUInt16LE(20,4);centralHeader.writeUInt16LE(20,6);centralHeader.writeUInt16LE(0x0800,8);centralHeader.writeUInt16LE(0,10);
+    centralHeader.writeUInt32LE(crc,16);centralHeader.writeUInt32LE(data.length,20);centralHeader.writeUInt32LE(data.length,24);centralHeader.writeUInt16LE(filename.length,28);
+    centralHeader.writeUInt32LE(offset,42);central.push(centralHeader,filename);
+    offset+=localHeader.length+filename.length+data.length;
+  }
+  const centralSize=central.reduce((sum,part)=>sum+part.length,0),end=Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50,0);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(centralSize,12);end.writeUInt32LE(offset,16);
+  return Buffer.concat([...local,...central,end]);
+}
+function pidReportDocx(report,generatedAt){
+  const intro='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
+  const order=['Executive Summary','Introduction','Previous Report Comparison','Current Report','Issues','Recommendations','Conclusion'];
+  const paragraphs=[wordParagraph('PID Report','Title'),wordParagraph('OAU-PID Facilities Programme','Subtitle'),wordParagraph('Generated: '+generatedAt,'Normal')];
+  for(const section of order){
+    if(typeof report[section]!=='string')continue;
+    paragraphs.push(wordParagraph(section,'Heading1'));
+    for(const line of report[section].split(/\\r?\\n/)){
+      const trimmed=line.trim();
+      if(!trimmed)continue;
+      paragraphs.push(wordParagraph(trimmed,'Normal'));
+    }
+  }
+  if(!report.Introduction.startsWith(intro))throw new Error('The required programme introduction is missing.');
+  const document=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`;
+  const types='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>';
+  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="36"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:rPr><w:color w:val="64748B"/><w:sz w:val="24"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:rPr><w:b/><w:color w:val="1E3A5F"/><w:sz w:val="28"/></w:rPr></w:style></w:styles>';
+  return zipStore([['[Content_Types].xml',types],['_rels/.rels',rels],['word/document.xml',document],['word/styles.xml',styles]]);
+}
+
 async function handle(req, res) {
   const url = new URL(req.url, 'http://localhost'); const state=load();
   if (req.method==='OPTIONS' && url.pathname.startsWith('/api/')) { res.writeHead(204, corsHeaders(req)); return res.end(); }
@@ -463,6 +514,19 @@ async function handle(req, res) {
       report.Introduction=intro;
       return respond(res,200,{report,model:deployment,comparedTo:previousReport?previousReport.generatedAt:null},apiHeaders);
     }catch(error){return respond(res,502,{error:'PID Report generation failed. Check model access and managed identity configuration.'},apiHeaders);}
+  }
+  if(req.method==='POST' && url.pathname==='/api/reports/pid-report/docx'){
+    const user=requireUser(req,res,state);if(!user)return;
+    const body=await readJson(req),report=body.report;
+    const required=['Executive Summary','Introduction','Current Report','Issues','Recommendations','Conclusion'];
+    if(!report||typeof report!=='object'||required.some(section=>typeof report[section]!=='string'||!report[section].trim()))return respond(res,400,{error:'The PID Report is incomplete and cannot be exported.'},apiHeaders);
+    if(Object.values(report).some(value=>typeof value!=='string'||value.length>24000))return respond(res,400,{error:'One or more report sections exceed the document limit.'},apiHeaders);
+    const generatedAt=String(body.generatedAt||new Date().toISOString());
+    try{
+      const docx=pidReportDocx(report,generatedAt);
+      res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','Content-Disposition':'attachment; filename="PID-Report.docx"','Cache-Control':'no-store',...apiHeaders});
+      return res.end(docx);
+    }catch(error){return respond(res,400,{error:error.message||'Could not create the Word document.'},apiHeaders);}
   }
   if(req.method==='POST' && url.pathname==='/api/notifications/email'){
     const actor=requireUser(req,res,state);if(!actor)return;
