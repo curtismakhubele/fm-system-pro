@@ -883,7 +883,7 @@
     </section>
 
   </main>
-  <footer style="padding:12px 20px;text-align:center;color:var(--ink-soft);font-size:11px;">© 2026 PID Facilities Management System. All rights reserved.</footer>
+  <footer style="grid-column:1 / -1;padding:12px 20px;text-align:center;color:var(--ink-soft);font-size:11px;">© Copyright 2026 PID Facilities Management System. All rights reserved.</footer>
 </div>
 
 <datalist id="asset-options-list"></datalist>
@@ -1894,7 +1894,7 @@ async function saveWorkOrderPage(){
   if(!worker||!worker.email||!whatsappNumberDigits(worker.phone)){showToast('Select a worker with both email and WhatsApp contact details');return;}
   const assignedTo=worker.name;
   const assetText=document.getElementById('page-wo-asset').value.trim();
-  const asset=assetText?(DATA.assets||[]).find(x=>x.id===assetText||x.tag===assetText||x.assetTag===assetText||x.name===assetText):null;
+  const asset=assetByEntry(assetText);
   const selectedPriority=document.getElementById('page-wo-priority').value;
   const priority=selectedPriority==='Urgent'?'critical':selectedPriority.toLowerCase();
   const record={
@@ -2189,8 +2189,8 @@ function importPMCSV(event){
     const rows = parseCSV(text); let count=0;
     rows.forEach(r=>{
       const task = r.Task||r.task; if(!task) return;
-      const asset = DATA.assets.find(a=>a.name === (r.Asset||r.asset));
-      DATA.pmTasks.push({ id: nextId('PM','pm'), assetId: asset?asset.id:'', task,
+      const asset = DATA.assets.find(a=>a.name === (r.Asset||r.asset)||a.id===(r.Asset||r.asset)||a.tag===(r.Asset||r.asset)||a.assetTag===(r.Asset||r.asset));
+      DATA.pmTasks.push({ id: nextId('PM','pm'), assetId: asset?asset.id:'', assetReference:asset?'':(r.Asset||r.asset||''), task,
         frequency: r.Frequency||r.frequency||'Monthly', assignedTo: r['Assigned To']||r.assignedTo||'Unassigned',
         lastDone: r['Last Done']||r.lastDone||'', nextDue: r['Next Due']||r.nextDue||'' });
       count++;
@@ -3187,7 +3187,7 @@ function renderOpsManagement(){
   const active=contractors.filter(x=>x.status==='Active').length, expiring=contractors.filter(x=>/renewal|review/i.test(x.compliance)).length;
   document.getElementById('contractor-kpis').innerHTML=[['Contractors',contractors.length],['Active contracts',active],['Review required',expiring]].map(([l,v])=>'<div class="kpi"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>').join('');
   document.getElementById('sla-kpis').innerHTML=[['Configured priorities',rules.length],['Work orders',DATA.workOrders.length],['Overdue maintenance',DATA.pmTasks.filter(p=>p.nextDue&&daysUntil(p.nextDue)<0).length]].map(([l,v])=>'<div class="kpi"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>').join('');
-  document.getElementById('management-pm-summary').innerHTML=DATA.pmTasks.length?'<div class="table-wrap"><table><thead><tr><th>Task</th><th>Asset</th><th>Frequency</th><th>Next due</th><th></th></tr></thead><tbody>'+DATA.pmTasks.map((p,i)=>'<tr><td>'+escapeHtml(p.task)+'</td><td>'+escapeHtml((assetById(p.assetId)||{}).name||'Unassigned')+'</td><td>'+escapeHtml(p.frequency)+'</td><td>'+escapeHtml(fmtDate(p.nextDue))+'</td><td><button class="btn btn-ghost btn-sm" onclick="editManagedPM('+i+')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePM(\''+p.id+'\')">Delete</button></td></tr>').join('')+'</tbody></table></div>':'<div class="empty">No preventive maintenance plans yet.</div>';
+  document.getElementById('management-pm-summary').innerHTML=DATA.pmTasks.length?'<div class="table-wrap"><table><thead><tr><th>Task</th><th>Asset</th><th>Frequency</th><th>Next due</th><th></th></tr></thead><tbody>'+DATA.pmTasks.map((p,i)=>'<tr><td>'+escapeHtml(p.task)+'</td><td>'+escapeHtml((assetById(p.assetId)||{}).name||p.assetReference||'Unassigned')+'</td><td>'+escapeHtml(p.frequency)+'</td><td>'+escapeHtml(fmtDate(p.nextDue))+'</td><td><button class="btn btn-ghost btn-sm" onclick="editManagedPM('+i+')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePM(\''+p.id+'\')">Delete</button></td></tr>').join('')+'</tbody></table></div>':'<div class="empty">No preventive maintenance plans yet.</div>';
   document.getElementById('management-contractor-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+contractors.length+'</strong><span>contractor records</span></div><div class="row"><strong>'+active+'</strong><span>active contracts</span></div><div class="row"><strong>'+expiring+'</strong><span>records requiring review</span></div></div>';
   document.getElementById('management-sla-summary').innerHTML='<div class="list-simple"><div class="row"><strong>'+rules.length+'</strong><span>SLA priority rules configured</span></div><div class="row"><strong>'+DATA.workOrders.length+'</strong><span>work orders in the register</span></div></div>';
   const dashboardContract=document.getElementById('overview-contractor-summary');
