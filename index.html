@@ -593,7 +593,7 @@
           <div class="field"><label for="page-wo-title">Work order title *</label><input id="page-wo-title" required placeholder="e.g. Repair leaking pipe"></div>
           <div class="field"><label for="page-wo-facility">Campus / facility *</label><select id="page-wo-facility" required></select></div>
           <div class="field"><label for="page-wo-location">Building / room / area</label><input id="page-wo-location" placeholder="e.g. Building 5, Room 2-14"></div>
-          <div class="field"><label for="page-wo-asset">Asset ID or description (optional)</label><input id="page-wo-asset" placeholder="Enter an asset tag, ID or description"></div>
+          <div class="field"><label for="page-wo-asset">Asset (optional)</label><input id="page-wo-asset" list="asset-options-list" placeholder="Choose a registered asset or enter an ID / name"></div>
           <div class="field"><label for="page-wo-trade">Trade / discipline *</label><select id="page-wo-trade" required><option>Electrical</option><option>Plumbing</option><option>HVAC / Air Conditioning</option><option>Civil / Building</option><option>Cleaning</option><option>Fire &amp; Safety</option><option>Lifts &amp; Escalators</option><option>Grounds &amp; Landscaping</option><option>IT / Access Control</option><option>Other</option></select></div>
           <div class="field"><label for="page-wo-priority">Priority *</label><select id="page-wo-priority" required><option>Medium</option><option>Low</option><option>High</option><option>Urgent</option></select></div>
           <div class="field"><label for="page-wo-assignee">Work must be assigned to *</label><select id="page-wo-assignee" required></select><small id="page-wo-assignee-help" class="form-help"></small></div>
@@ -844,7 +844,7 @@
       <div class="panel">
         <div class="panel-head"><div><h2>Report an asset issue</h2><div class="sub">Spot something wrong on your rounds? Log it here - it becomes a work order automatically, and you can flag the asset itself as needing attention</div></div></div>
         <div class="row2">
-          <div class="field"><label>Registered asset</label><select id="ar-asset"></select><input id="ar-asset-detail" style="margin-top:8px;" placeholder="Or enter an asset ID, tag or description"></div>
+          <div class="field"><label>Asset</label><input id="ar-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name"></div>
           <div class="field"><label>Severity</label><select id="ar-severity"><option value="low">Low - cosmetic / minor</option><option value="medium" selected>Medium - needs attention soon</option><option value="high">High - affects operation</option><option value="critical">Critical - unsafe / urgent</option></select></div>
         </div>
         <div class="field"><label>What did you notice?</label><textarea id="ar-issue" placeholder="e.g. Leaking pipe near the AHU, strange noise from the generatorâ€¦"></textarea></div>
@@ -883,8 +883,10 @@
     </section>
 
   </main>
+  <footer style="padding:12px 20px;text-align:center;color:var(--ink-soft);font-size:11px;">© 2026 PID Facilities Management System. All rights reserved.</footer>
 </div>
 
+<datalist id="asset-options-list"></datalist>
 <div class="overlay" id="overlay"><div class="modal" id="modal-content"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -1788,17 +1790,15 @@ function openWorkflowAssistant(){
       Recommendations are reviewed before submission. Every new work order still goes to HQ/admin for approval.
     </div>
     <div class="field"><label for="ai-workflow-description">Issue description *</label><textarea id="ai-workflow-description" required maxlength="2000" placeholder="Include what happened, where it happened, the impact, and any immediate safety concerns." style="min-height:130px;"></textarea><small style="color:var(--ink-soft);">Use at least 10 characters. Avoid including personal or sensitive information.</small></div>
-    <div class="field"><label for="ai-workflow-asset">Choose a registered asset <span style="font-weight:400;text-transform:none;">(optional)</span></label><select id="ai-workflow-asset">${assetOptions('')}</select><label for="ai-workflow-asset-manual" style="margin-top:10px;">Or enter an asset ID, tag or name</label><input id="ai-workflow-asset-manual" placeholder="e.g. HVAC-PTA-0042 or Main reception air conditioner"></div>
+    <div class="field"><label for="ai-workflow-asset">Related asset <span style="font-weight:400;text-transform:none;">(optional)</span></label><input id="ai-workflow-asset" list="asset-options-list" placeholder="Choose a registered asset or type an ID / name"></div>
     <div id="ai-workflow-result" role="status" aria-live="polite" style="display:none;margin-top:14px;"></div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" id="ai-workflow-submit" onclick="generateWorkflowDraft()">Generate recommendation</button></div>
   `);
 }
 async function generateWorkflowDraft(){
   const description=document.getElementById('ai-workflow-description').value.trim();
-  const selectedAssetId=document.getElementById('ai-workflow-asset').value;
-  const manualAsset=document.getElementById('ai-workflow-asset-manual').value.trim();
-  const matchedManual=(DATA.assets||[]).find(item=>[item.id,item.tag,item.assetTag,item.name].some(value=>String(value||'').toLowerCase()===manualAsset.toLowerCase()));
-  const asset=assetById(selectedAssetId)||matchedManual;
+  const assetEntry=document.getElementById('ai-workflow-asset').value.trim();
+  const asset=assetByEntry(assetEntry);
   const assetId=asset?asset.id:'';
   const result=document.getElementById('ai-workflow-result');
   const button=document.getElementById('ai-workflow-submit');
@@ -1806,10 +1806,10 @@ async function generateWorkflowDraft(){
   button.disabled=true;button.textContent='Preparing recommendation…';
   result.style.display='block';result.innerHTML='<div style="padding:18px;border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--ink-soft);">Reviewing the issue and preparing suggested next steps…</div>';
   try{
-    const res=await apiFetch('/api/ai/workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description,assetName:asset?asset.name:manualAsset})});
+    const res=await apiFetch('/api/ai/workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description,assetName:asset?asset.name:assetEntry})});
     const data=await res.json();
     if(!res.ok)throw new Error(data.error||'Workflow recommendation could not be generated.');
-    workflowDraftResult={...data.workflow,description,assetId,assetReference:asset?'':manualAsset};
+    workflowDraftResult={...data.workflow,description,assetId,assetReference:asset?'':assetEntry};
     const priority=String(workflowDraftResult.priority||'medium').toLowerCase();
     const priorityClass=priority==='critical'?'crit':priority==='high'?'warn':priority==='medium'?'info':'good';
     const dueLabel=workflowDraftResult.dueDate?new Date(workflowDraftResult.dueDate+'T00:00:00').toLocaleDateString():'To be scheduled';
@@ -1842,6 +1842,15 @@ function useWorkflowDraft(){
   const priority=String(workflowDraftResult.priority||'medium').toLowerCase();
   document.getElementById('page-wo-priority').value=priority==='critical'?'Urgent':priority.charAt(0).toUpperCase()+priority.slice(1);
   document.getElementById('page-wo-description').value=`${workflowDraftResult.description||''}\n\nRecommended next steps:\n- ${(workflowDraftResult.nextSteps||[]).join('\n- ')}`;
+}
+function assetEntryLabel(asset){return asset?asset.name+' ('+(asset.tag||asset.assetTag||asset.id)+')':'';}
+function assetByEntry(value){
+  const entry=String(value||'').trim().toLowerCase();if(!entry)return null;
+  return (DATA.assets||[]).find(asset=>[asset.id,asset.tag,asset.assetTag,asset.name,assetEntryLabel(asset)].some(candidate=>String(candidate||'').trim().toLowerCase()===entry))||null;
+}
+function renderAssetSuggestions(){
+  const list=document.getElementById('asset-options-list');if(!list)return;
+  list.innerHTML=(DATA.assets||[]).map(asset=>'<option value="'+escapeAttr(assetEntryLabel(asset))+'"></option>').join('');
 }
 function assetOptions(selectedId){
   return `<option value="">- None -</option>` + DATA.assets.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.name} (${a.id})</option>`).join('');
@@ -1913,7 +1922,7 @@ function openWOModal(editId){
     <input type="hidden" id="f-edit-id" value="${editing ? editing.id : ''}">
     <div class="field"><label>Title</label><input id="f-title" placeholder="e.g. Replace AHU belt" value="${editing ? editing.title.replace(/"/g,'&quot;') : ''}"></div>
     <div class="row2">
-      <div class="field"><label>Registered asset</label><select id="f-asset">${assetOptions(editing?editing.assetId:'')}</select><input id="f-asset-detail" style="margin-top:8px;" placeholder="Or enter an asset ID, tag or description" value="${editing&&!editing.assetId?escapeHtml(editing.assetReference||''):''}"></div>
+      <div class="field"><label>Asset</label><input id="f-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name" value="${editing?(assetById(editing.assetId)?assetEntryLabel(assetById(editing.assetId)):escapeHtml(editing.assetReference||'')):''}"></div>
       <div class="field"><label>Centre</label><select id="f-centre">${centreOptions(editing?editing.centreId:'')}</select></div>
     </div>
     <div class="row2">
@@ -1955,8 +1964,8 @@ async function saveWO(){
 
   const fields = {
     title,
-    assetId: document.getElementById('f-asset-detail').value.trim()?'':document.getElementById('f-asset').value,
-    assetReference:document.getElementById('f-asset-detail').value.trim(),
+    assetId:assetByEntry(document.getElementById('f-asset').value)?.id||'',
+    assetReference:assetByEntry(document.getElementById('f-asset').value)?'':document.getElementById('f-asset').value.trim(),
     centreId: document.getElementById('f-centre').value,
     type: document.getElementById('f-type').value,
     priority: document.getElementById('f-priority').value,
@@ -2145,7 +2154,7 @@ function renderWorkOrders(){
 function openPMModal(){
   openModal(`
     <h3>Schedule maintenance task</h3><div class="modal-sub">Recurring preventive maintenance</div>
-    <div class="field"><label>Registered asset</label><select id="f-asset">${assetOptions()}</select><input id="f-pm-asset-detail" style="margin-top:8px;" placeholder="Or enter an asset ID, tag or description"></div>
+    <div class="field"><label>Asset</label><input id="f-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name"></div>
     <div class="field"><label>Task</label><input id="f-task" placeholder="e.g. Belt inspection"></div>
     <div class="row2">
       <div class="field"><label>Frequency</label><select id="f-freq"><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option>Annually</option></select></div>
@@ -2161,7 +2170,8 @@ function openPMModal(){
 function savePM(){
   const task = document.getElementById('f-task').value.trim();
   if(!task){ showToast('Task name is required'); return; }
-  DATA.pmTasks.push({ id: nextId('PM','pm'), assetId: document.getElementById('f-pm-asset-detail').value.trim()?'':document.getElementById('f-asset').value, assetReference:document.getElementById('f-pm-asset-detail').value.trim(), task,
+  const pmAssetEntry=document.getElementById('f-asset').value.trim(),pmAsset=assetByEntry(pmAssetEntry);
+  DATA.pmTasks.push({ id: nextId('PM','pm'), assetId:pmAsset?pmAsset.id:'',assetReference:pmAsset?'':pmAssetEntry, task,
     frequency: document.getElementById('f-freq').value,
     assignedTo: document.getElementById('f-assignee').value.trim() || 'Unassigned',
     lastDone: document.getElementById('f-last').value || '', nextDue: document.getElementById('f-next').value || '' });
@@ -2862,8 +2872,7 @@ function renderIntern(){
   const intern = userById(state.currentInternId);
   document.getElementById('intern-greeting').textContent = intern ? 'Welcome, ' + intern.name.split(' ')[0] : 'Welcome';
 
-  const arAsset = document.getElementById('ar-asset');
-  if(arAsset) arAsset.innerHTML = assetOptions();
+  renderAssetSuggestions();
 
   const body = document.getElementById('intern-wo-body');
   if(!intern){ body.innerHTML=''; document.getElementById('intern-wo-empty').style.display='block'; document.getElementById('intern-checklist').innerHTML=''; document.getElementById('intern-reports-body').innerHTML=''; document.getElementById('intern-reports-empty').style.display='block'; return; }
@@ -2900,18 +2909,16 @@ function toggleInternItem(internId, itemId){
 function submitAssetReport(){
   const intern=userById(state.currentInternId);
   if(!intern){showToast('Select who you are first');return;}
-  const selectedId=document.getElementById('ar-asset').value;
-  const manualAsset=document.getElementById('ar-asset-detail').value.trim();
-  const matched=(DATA.assets||[]).find(item=>[item.id,item.tag,item.assetTag,item.name].some(value=>String(value||'').toLowerCase()===manualAsset.toLowerCase()));
-  const asset=assetById(selectedId)||matched;
-  const assetName=asset?asset.name:manualAsset;
-  if(!asset&&!manualAsset){showToast('Choose a registered asset or enter its ID, tag or name');return;}
+  const assetEntry=document.getElementById('ar-asset').value.trim();
+  const asset=assetByEntry(assetEntry);
+  const assetName=asset?asset.name:assetEntry;
+  if(!assetEntry){showToast('Choose a registered asset or type its ID, tag or name');return;}
   const issue=document.getElementById('ar-issue').value.trim();
   if(!issue){showToast('Describe what you noticed');return;}
   const severity=document.getElementById('ar-severity').value,statusUpdate=document.getElementById('ar-status').value;
   const wo={
     id:nextId('WO','wo'),title:'Asset issue reported: '+assetName,assetId:asset?asset.id:'',
-    assetReference:asset?'':manualAsset,centreId:asset?asset.centreId:'',type:'corrective',
+    assetReference:asset?'':assetEntry,centreId:asset?asset.centreId:'',type:'corrective',
     priority:severity,status:'pending_approval',assignedUserId:'',assignedTo:'Unassigned',waNumber:'',
     location:asset?asset.location||'-':'-',createdDate:new Date().toISOString().slice(0,10),dueDate:'',
     description:issue+'  (Reported by intern: '+intern.name+')',gpsCheckin:null,reportedByIntern:intern.name,
@@ -2920,9 +2927,9 @@ function submitAssetReport(){
   DATA.workOrders.push(wo);
   const previousStatus=asset?asset.status:null;
   if(asset&&statusUpdate&&statusUpdate!==asset.status)asset.status=statusUpdate;
-  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':manualAsset,internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:'open',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
+  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:'open',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
   persist();
-  document.getElementById('ar-issue').value='';document.getElementById('ar-status').value='';document.getElementById('ar-asset-detail').value='';
+  document.getElementById('ar-issue').value='';document.getElementById('ar-status').value='';document.getElementById('ar-asset').value='';
   renderAll();showToast('Report submitted - work order '+wo.id+' created'+(asset&&statusUpdate?', asset marked '+(statusUpdate==='down'?'not operational':'needs attention'):''));
 }
 
@@ -3161,13 +3168,12 @@ async function deleteOpsRecord(type,index){
 
 function editManagedPM(index){
   const item=DATA.pmTasks[index]; if(!item)return;
-  openModal('<h3>Edit preventive maintenance plan</h3><div class="modal-sub">Update the existing recurring maintenance record.</div><div class="field"><label>Registered asset</label><select id="ops-pm-asset">'+assetOptions()+'</select><input id="ops-pm-asset-detail" style="margin-top:8px;" placeholder="Or enter an asset ID, tag or description" value="'+escapeHtml(item.assetReference||'')+'"></div><div class="field"><label>Task</label><input id="ops-pm-task" value="'+escapeHtml(item.task)+'" required></div><div class="row2"><div class="field"><label>Frequency</label><select id="ops-pm-frequency">'+['Weekly','Monthly','Quarterly','6-monthly','Annually'].map(x=>'<option '+(x===item.frequency?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="field"><label>Assigned to</label><input id="ops-pm-assignee" value="'+escapeHtml(item.assignedTo||'')+'"></div></div><div class="row2"><div class="field"><label>Last done</label><input id="ops-pm-last" type="date" value="'+escapeHtml(item.lastDone||'')+'"></div><div class="field"><label>Next due</label><input id="ops-pm-next" type="date" value="'+escapeHtml(item.nextDue||'')+'"></div></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveManagedPM('+index+')">Save plan</button></div>');
-  document.getElementById('ops-pm-asset').value=item.assetId||'';
+  openModal('<h3>Edit preventive maintenance plan</h3><div class="modal-sub">Update the existing recurring maintenance record.</div><div class="field"><label>Asset</label><input id="ops-pm-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name" value="'+escapeAttr(assetById(item.assetId)?assetEntryLabel(assetById(item.assetId)):item.assetReference||'')+'"></div><div class="field"><label>Task</label><input id="ops-pm-task" value="'+escapeHtml(item.task)+'" required></div><div class="row2"><div class="field"><label>Frequency</label><select id="ops-pm-frequency">'+['Weekly','Monthly','Quarterly','6-monthly','Annually'].map(x=>'<option '+(x===item.frequency?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="field"><label>Assigned to</label><input id="ops-pm-assignee" value="'+escapeHtml(item.assignedTo||'')+'"></div></div><div class="row2"><div class="field"><label>Last done</label><input id="ops-pm-last" type="date" value="'+escapeHtml(item.lastDone||'')+'"></div><div class="field"><label>Next due</label><input id="ops-pm-next" type="date" value="'+escapeHtml(item.nextDue||'')+'"></div></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveManagedPM('+index+')">Save plan</button></div>');
 }
 async function saveManagedPM(index){
   const task=document.getElementById('ops-pm-task').value.trim(); if(!task){showToast('Task name is required');return;}
-  const manualAsset=document.getElementById('ops-pm-asset-detail').value.trim();
-  DATA.pmTasks[index]={...DATA.pmTasks[index],assetId:manualAsset?'':document.getElementById('ops-pm-asset').value,assetReference:manualAsset,task,frequency:document.getElementById('ops-pm-frequency').value,assignedTo:document.getElementById('ops-pm-assignee').value.trim(),lastDone:document.getElementById('ops-pm-last').value,nextDue:document.getElementById('ops-pm-next').value};
+  const assetEntry=document.getElementById('ops-pm-asset').value.trim(),asset=assetByEntry(assetEntry);
+  DATA.pmTasks[index]={...DATA.pmTasks[index],assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,task,frequency:document.getElementById('ops-pm-frequency').value,assignedTo:document.getElementById('ops-pm-assignee').value.trim(),lastDone:document.getElementById('ops-pm-last').value,nextDue:document.getElementById('ops-pm-next').value};
   await persist(); closeModal(); renderAll(); showToast('Maintenance plan updated');
 }
 function renderOpsManagement(){
@@ -3191,6 +3197,7 @@ function renderOpsManagement(){
 }
 
 function renderAll(){
+  renderAssetSuggestions();
   renderCentreFilterOptions();
   renderOverview();
   renderHQ();
