@@ -2078,8 +2078,7 @@ function renderWorkOrders(){
   const visibleOrders=approver?DATA.workOrders:(DATA.workOrders||[]).filter(order=>(me&&order.assignedUserId===me.id&&order.status!=='pending_approval'&&order.status!=='denied')||(me&&order.reportedByUserId===me.id&&(order.status==='denied'||order.returnedToReporter===true)));
   const filtered = visibleOrders.filter(w=>inFilter(w.centreId));
   document.getElementById('nav-wo-count').textContent = DATA.workOrders.filter(w=>w.status!=='completed' && w.status!=='denied').length;
-  const workflowOrders=visibleOrders;document.getElementById('wo-stage-review').textContent=workflowOrders.filter(w=>w.status==='pending_approval').length;document.getElementById('wo-stage-assigned').textContent=workflowOrders.filter(w=>['open','on_hold'].includes(w.status)).length;document.getElementById('wo-stage-progress').textContent=workflowOrders.filter(w=>w.status==='in_progress').length;document.getElementById('wo-stage-completed').textContent=workflowOrders.filter(w=>w.status==='completed').length;document.getElementById('wo-stage-returned').textContent=workflowOrders.filter(w=>w.status==='denied'||w.returnedToReporter===true).length;
-  const workflowOrders=DATA.workOrders||[];
+  const workflowOrders=visibleOrders;
   document.getElementById('wo-stage-review').textContent=workflowOrders.filter(w=>w.status==='pending_approval').length;
   document.getElementById('wo-stage-assigned').textContent=workflowOrders.filter(w=>['open','on_hold'].includes(w.status)).length;
   document.getElementById('wo-stage-progress').textContent=workflowOrders.filter(w=>w.status==='in_progress').length;
