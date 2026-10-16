@@ -366,7 +366,7 @@ function pidReportDocx(report,generatedAt){
   for(const section of order){
     if(typeof report[section]!=='string')continue;
     paragraphs.push(wordParagraph(section,'Heading1'));
-    for(const line of report[section].split(/\\r?\\n/)){
+    for(const line of report[section].split(/\r?\n/)){
       const trimmed=line.trim();
       if(!trimmed)continue;
       paragraphs.push(wordParagraph(trimmed,'Normal'));
