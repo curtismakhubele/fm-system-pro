@@ -722,8 +722,8 @@
     <section class="view" id="view-reports">
       <div class="topbar"><div><h1>Reports</h1><div class="meta">Rolled-up view generated live from your data</div></div></div>
       <div class="panel">
-        <div class="panel-head"><div><h2>OAU-PID facilities programme</h2><div class="sub">Programme report</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download report</button></div></div>
-        <div class="field"><label for="programme-report-source">Programme brief</label><textarea id="programme-report-source" rows="5">OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.</textarea></div>
+        <div class="panel-head"><div><h2>PID Report</h2><div class="sub">OAU-PID facilities programme review</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download report</button></div></div>
+        <div class="field"><label for="programme-report-source">Current report / review material</label><textarea id="programme-report-source" rows="6" placeholder="Add the latest review findings, completed work, issues, dates and evidence. The programme introduction is inserted automatically.">OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.</textarea><small style="color:var(--ink-soft);">Include current findings and evidence. The report will not claim progress or outcomes that are not provided.</small></div>
         <p id="programme-report-status" role="status" style="color:var(--ink-soft);font-size:12px;"></p>
         <div id="programme-report-output"></div>
       </div>
@@ -952,6 +952,7 @@ async function loadData(){
 }
 function normalizeData(){
   if(!DATA.centres) DATA.centres = [];
+  if(!Array.isArray(DATA.programmeReports)) DATA.programmeReports = [];
   if(!DATA.users) DATA.users = [];
   if(!DATA.waNumber) DATA.waNumber = '0634116900';
   if(!DATA.assetReports) DATA.assetReports = [];
@@ -1004,7 +1005,7 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], doodleLinks:[], documents:[],
+    centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
     internChecklists:{}, seq:{asset:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
@@ -2953,27 +2954,37 @@ function renderReports(){
   document.getElementById('report-overdue-body').innerHTML = overdueRows.join('');
   document.getElementById('report-overdue-empty').style.display = overdueRows.length===0 ? 'block' : 'none';
 }
-const PROGRAMME_REPORT_SECTIONS=['Executive Summary','Introduction','Body','Methodology','Results','Recommendations','Conclusion'];
+const PROGRAMME_REPORT_SECTIONS=['Executive Summary','Introduction','Previous Report Comparison','Current Report','Issues','Recommendations','Conclusion'];
+const PROGRAMME_REPORT_INTRODUCTION='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
+let programmeReportSections=[];
 let programmeReportResult=null;
 async function generateProgrammeReport(){
-  const button=document.getElementById('generate-programme-report'); const status=document.getElementById('programme-report-status');
-  const source=document.getElementById('programme-report-source').value.trim(); const output=document.getElementById('programme-report-output');
-  if(source.length<80){ status.textContent='Add more programme context before generating the report.'; return; }
-  button.disabled=true; button.textContent='Generating...'; status.textContent='Generating report...'; output.innerHTML='';
+  const button=document.getElementById('generate-programme-report'),status=document.getElementById('programme-report-status');
+  const source=document.getElementById('programme-report-source').value.trim(),output=document.getElementById('programme-report-output');
+  if(source.length<10){status.textContent='Add current report details before generating a PID Report.';return;}
+  const earlier=(DATA.programmeReports||[]).filter(item=>item&&item.report&&item.generatedAt&&Date.parse(item.generatedAt)<Date.now()).sort((a,b)=>Date.parse(a.generatedAt)-Date.parse(b.generatedAt));
+  const previousReport=earlier.length?earlier[earlier.length-1]:null;
+  button.disabled=true;button.textContent='Generating PID Report...';status.textContent=previousReport?'Generating the report and comparing it with the previous PID Report...':'Generating the first PID Report...';output.innerHTML='';
   try{
-    const response=await apiFetch('/api/ai/programme-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source})});
-    const result=await response.json(); if(!response.ok) throw new Error(result.error||'Report generation failed.');
-    programmeReportResult=result.report;
-    output.innerHTML=PROGRAMME_REPORT_SECTIONS.map(section=>`<section style="border-top:1px solid var(--border);padding:14px 0 2px;"><h3 style="font-size:14px;margin:0 0 6px;">${escapeHtml(section)}</h3><p style="white-space:pre-wrap;margin:0;color:var(--ink-soft);line-height:1.6;">${escapeHtml(programmeReportResult[section])}</p></section>`).join('');
+    const response=await apiFetch('/api/ai/programme-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source,previousReport})});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'PID Report generation failed.');
+    programmeReportResult=result.report;programmeReportSections=PROGRAMME_REPORT_SECTIONS.filter(section=>typeof programmeReportResult[section]==='string');
+    const generatedAt=new Date().toISOString();
+    if(!Array.isArray(DATA.programmeReports))DATA.programmeReports=[];
+    DATA.programmeReports.push({id:'PIDR-'+Date.now(),generatedAt,source,report:programmeReportResult});
+    if(DATA.programmeReports.length>30)DATA.programmeReports=DATA.programmeReports.slice(-30);
+    await persist();
+    output.innerHTML=programmeReportSections.map(section=>'<section style="border-top:1px solid var(--border);padding:14px 0 2px;"><h3 style="font-size:14px;margin:0 0 6px;">'+escapeHtml(section)+'</h3><p style="white-space:pre-wrap;margin:0;color:var(--ink-soft);line-height:1.6;">'+escapeHtml(programmeReportResult[section])+'</p></section>').join('');
     document.getElementById('download-programme-report').style.display='';
-    status.textContent=`Draft generated with ${result.model}. Verify findings against site assessment records before issue.`;
-  }catch(error){ status.textContent=error.message||'Report generation failed.'; }
-  finally{ button.disabled=false; button.textContent='Generate report'; }
+    const comparison=previousReport?' Compared with the report generated '+new Date(previousReport.generatedAt).toLocaleString()+'.':' No earlier PID Report was available for comparison.';
+    status.textContent='PID Report generated with '+result.model+'.'+comparison+' Review the evidence before issue.';
+  }catch(error){status.textContent=error.message||'PID Report generation failed.';}
+  finally{button.disabled=false;button.textContent='Generate PID Report';}
 }
 function downloadProgrammeReport(){
   if(!programmeReportResult) return;
-  const markdown=PROGRAMME_REPORT_SECTIONS.map(section=>`## ${section}\n\n${programmeReportResult[section]}`).join('\n\n');
-  downloadText(`OAU-PID-facilities-programme-report-${new Date().toISOString().slice(0,10)}.md`,markdown,'text/markdown;charset=utf-8');
+  const markdown=programmeReportSections.map(section=>`## ${section}\n\n${programmeReportResult[section]}`).join('\n\n');
+  downloadText(`PID-Report-${new Date().toISOString().slice(0,10)}.md`,markdown,'text/markdown;charset=utf-8');
 }
 
 /* ---------- SETTINGS / EMAIL / WHATSAPP ---------- */
