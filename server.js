@@ -430,33 +430,39 @@ async function handle(req, res) {
     return respond(res,200,{workflow:workflowDraft(description,assetName),description,assetName},apiHeaders);
   }
   if(req.method==='POST' && url.pathname==='/api/ai/programme-report'){
-    const user=requireUser(req,res,state); if(!user) return;
-    const body=await readJson(req); const source=String(body.source||'').trim();
-    if(source.length<80||source.length>8000) return respond(res,400,{error:'Provide programme context between 80 and 8,000 characters.'},apiHeaders);
+    const user=requireUser(req,res,state);if(!user)return;
+    const body=await readJson(req),source=String(body.source||'').trim();
+    if(source.length<10||source.length>12000)return respond(res,400,{error:'Provide current report notes between 10 and 12,000 characters.'},apiHeaders);
+    const intro='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
+    const candidate=body.previousReport&&typeof body.previousReport==='object'?body.previousReport:null;
+    const previousDate=candidate?Date.parse(candidate.generatedAt||''):NaN;
+    const previousReport=Number.isFinite(previousDate)&&previousDate<Date.now()&&candidate.report&&typeof candidate.report==='object'?candidate:null;
+    const previousText=previousReport?JSON.stringify(previousReport.report).slice(0,16000):'';
     const endpoint=String(process.env.AZURE_OPENAI_ENDPOINT||'').trim();
     const deployment=String(process.env.AZURE_OPENAI_DEPLOYMENT||'gpt-4.1-mini').trim();
-    if(!endpoint||!deployment) return respond(res,503,{error:'AI report generation is not configured on this host.'},apiHeaders);
+    if(!endpoint||!deployment)return respond(res,503,{error:'PID Report generation is not configured on this host.'},apiHeaders);
     let requestUrl;
     try{
       requestUrl=new URL(endpoint);
-      if(requestUrl.protocol!=='https:') return respond(res,503,{error:'AI report endpoint must use HTTPS.'},apiHeaders);
+      if(requestUrl.protocol!=='https:')return respond(res,503,{error:'AI report endpoint must use HTTPS.'},apiHeaders);
       requestUrl.pathname=requestUrl.pathname.replace(/\/$/,'')+`/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`;
       requestUrl.searchParams.set('api-version',String(process.env.AZURE_OPENAI_API_VERSION||'2024-10-21'));
-    }catch(error){ return respond(res,503,{error:'AI report endpoint configuration is invalid.'},apiHeaders); }
-    const sections=['Executive Summary','Introduction','Body','Methodology','Results','Recommendations','Conclusion'];
-    const systemPrompt=`You are a careful facilities programme reporting assistant. Return one JSON object with exactly these string keys: ${sections.join(', ')}. Write a formal, evidence-led report about the OAU-PID programme. The source brief is the only verified programme evidence. Do not invent facility inspections, condition scores, budgets, completed work, dates, regional counts, stakeholder findings, or outcomes. The known scope is 45 UNISA facilities across various regions and the stated aim is to assess, refurbish, and advance them to improve condition, functionality, safety, and technology for students, learners, educators, and staff. In Results, clearly state that measured results were not supplied and list the baseline evidence needed. Recommendations must be actionable and stage the programme. Distinguish proposed methodology from completed work. Keep the report concise and suitable for executive review.`;
+    }catch(error){return respond(res,503,{error:'AI report endpoint configuration is invalid.'},apiHeaders);}
+    const sections=['Executive Summary','Introduction',...(previousReport?['Previous Report Comparison']:[]),'Current Report','Issues','Recommendations','Conclusion'];
+    const systemPrompt=`You are the PID Report assistant for the OAU-PID facilities programme. Return one JSON object with exactly these string keys: ${sections.join(', ')}. Write a concise, formal report for management. The Introduction section must be exactly this paragraph and must begin the report introduction with it: "${intro}" Use only evidence in the current report material and the supplied previous report. Never invent site visits, condition scores, budgets, completed work, dates, regions, stakeholder findings, outcomes or changes. If current assessment evidence is missing, explicitly say it was not supplied and identify what is needed. Current Report summarizes the latest supplied report material. Issues lists evidenced concerns, or says no specific issues were supplied. Recommendations must be actionable and clearly distinguish proposed actions from completed work. ${previousReport?'Previous Report Comparison must compare the most recent earlier generated report with the current report material. Identify supported changes, continuing items and items that cannot be compared; if the current material lacks evidence, say so. Do not claim progress without evidence.':'Do not include a previous-report comparison because there is no earlier generated report.'}`;
     try{
       const authHeaders=await azureOpenAIHeaders();
       const response=await fetch(requestUrl,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:JSON.stringify({
-        model:deployment,temperature:0.2,max_tokens:3200,response_format:{type:'json_object'},messages:[{role:'system',content:systemPrompt},{role:'user',content:source}]
+        model:deployment,temperature:0.2,max_tokens:2800,response_format:{type:'json_object'},
+        messages:[{role:'system',content:systemPrompt},{role:'user',content:JSON.stringify({currentReportMaterial:source,previousReport:previousText||null})}]
       }),signal:AbortSignal.timeout(60000)});
-      if(!response.ok) return respond(res,502,{error:`AI report provider returned ${response.status}. Check the deployment and model access.`},apiHeaders);
-      const result=await response.json(); const content=result.choices?.[0]?.message?.content;
-      let report;
-      try{ report=JSON.parse(content); }catch(error){ return respond(res,502,{error:'AI report provider returned invalid structured content.'},apiHeaders); }
-      if(!report||sections.some(section=>typeof report[section]!=='string'||!report[section].trim())) return respond(res,502,{error:'AI report is missing one or more required sections.'},apiHeaders);
-      return respond(res,200,{report,model:deployment},apiHeaders);
-    }catch(error){ return respond(res,502,{error:'AI report generation failed. Check model access and managed identity configuration.'},apiHeaders); }
+      if(!response.ok)return respond(res,502,{error:`PID Report provider returned ${response.status}. Check the deployment and model access.`},apiHeaders);
+      const result=await response.json(),content=result.choices?.[0]?.message?.content;
+      let report;try{report=JSON.parse(content);}catch(error){return respond(res,502,{error:'AI report provider returned invalid structured content.'},apiHeaders);}
+      if(!report||sections.some(section=>typeof report[section]!=='string'||!report[section].trim()))return respond(res,502,{error:'PID Report is missing one or more required sections.'},apiHeaders);
+      report.Introduction=intro;
+      return respond(res,200,{report,model:deployment,comparedTo:previousReport?previousReport.generatedAt:null},apiHeaders);
+    }catch(error){return respond(res,502,{error:'PID Report generation failed. Check model access and managed identity configuration.'},apiHeaders);}
   }
   if(req.method==='POST' && url.pathname==='/api/notifications/email'){
     const actor=requireUser(req,res,state);if(!actor)return;
