@@ -1777,40 +1777,66 @@ function renderAssets(){
 /* ---------- WORK ORDERS ---------- */
 let workflowDraftResult = null;
 function openWorkflowAssistant(){
-  workflowDraftResult = null;
+  workflowDraftResult=null;
   openModal(`
-    <h3>AI workflow assistant</h3><div class="modal-sub">Describe the issue and get a reviewable work-order workflow.</div>
-    <div class="field"><label>What happened?</label><textarea id="ai-workflow-description" placeholder="Example: Water is leaking from the ceiling above the reception area and the floor is slippery."></textarea></div>
-    <div class="field"><label>Related asset (optional)</label><select id="ai-workflow-asset">${assetOptions('')}</select></div>
-    <div id="ai-workflow-result" style="display:none;margin-top:14px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;"></div>
-    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" id="ai-workflow-submit" onclick="generateWorkflowDraft()">Generate workflow</button></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <div style="width:42px;height:42px;border-radius:12px;background:var(--info-bg);color:var(--info);display:grid;place-items:center;font-size:20px;">✦</div>
+      <div><div style="font-size:10px;font-weight:700;letter-spacing:1.1px;color:var(--info);text-transform:uppercase;">Work order planning</div><h3 style="margin:2px 0 0;">AI workflow assistant</h3></div>
+    </div>
+    <div class="modal-sub" style="margin-bottom:16px;">Describe a facilities issue to get a structured triage recommendation and suggested next steps.</div>
+    <div style="padding:12px 14px;margin-bottom:16px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;background:var(--bg);font-size:12px;color:var(--ink-soft);">
+      Recommendations are reviewed before submission. Every new work order still goes to HQ/admin for approval.
+    </div>
+    <div class="field"><label for="ai-workflow-description">Issue description *</label><textarea id="ai-workflow-description" required maxlength="2000" placeholder="Include what happened, where it happened, the impact, and any immediate safety concerns." style="min-height:130px;"></textarea><small style="color:var(--ink-soft);">Use at least 10 characters. Avoid including personal or sensitive information.</small></div>
+    <div class="field"><label for="ai-workflow-asset">Related asset <span style="font-weight:400;text-transform:none;">(optional)</span></label><select id="ai-workflow-asset">${assetOptions('')}</select></div>
+    <div id="ai-workflow-result" role="status" aria-live="polite" style="display:none;margin-top:14px;"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" id="ai-workflow-submit" onclick="generateWorkflowDraft()">Generate recommendation</button></div>
   `);
 }
 async function generateWorkflowDraft(){
-  const description = document.getElementById('ai-workflow-description').value.trim();
-  const assetId = document.getElementById('ai-workflow-asset').value;
-  const asset = assetById(assetId);
-  const result = document.getElementById('ai-workflow-result');
-  const button = document.getElementById('ai-workflow-submit');
-  if(description.length<10){ result.style.display='block'; result.textContent='Please describe the issue in at least 10 characters.'; return; }
-  button.disabled = true; button.textContent = 'Analysing...';
+  const description=document.getElementById('ai-workflow-description').value.trim();
+  const assetId=document.getElementById('ai-workflow-asset').value;
+  const asset=assetById(assetId);
+  const result=document.getElementById('ai-workflow-result');
+  const button=document.getElementById('ai-workflow-submit');
+  if(description.length<10){result.style.display='block';result.innerHTML='<div class="banner" style="margin:0;">Add a little more detail so the assistant can prepare a useful recommendation.</div>';return;}
+  button.disabled=true;button.textContent='Preparing recommendation…';
+  result.style.display='block';result.innerHTML='<div style="padding:18px;border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--ink-soft);">Reviewing the issue and preparing suggested next steps…</div>';
   try{
-    const res = await apiFetch('/api/ai/workflow', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({description,assetName:asset?asset.name:''}) });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Workflow generation failed');
-    workflowDraftResult = { ...data.workflow, description, assetId };
-    result.style.display='block';
-    result.innerHTML = `<strong>${workflowDraftResult.title}</strong><div style="margin-top:6px;color:var(--ink-soft);">${workflowDraftResult.summary} Â· SLA ${workflowDraftResult.slaHours} hours Â· due ${workflowDraftResult.dueDate}</div><ul style="margin:10px 0 0 18px;padding:0;">${workflowDraftResult.nextSteps.map(step=>`<li>${step}</li>`).join('')}</ul><button class="btn btn-accent btn-sm" style="margin-top:12px;" onclick="useWorkflowDraft()">Review in work order</button>`;
-  }catch(error){ result.style.display='block'; result.textContent = error.message || 'Could not generate a workflow.'; }
-  button.disabled = false; button.textContent = 'Generate workflow';
+    const res=await apiFetch('/api/ai/workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description,assetName:asset?asset.name:''})});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'Workflow recommendation could not be generated.');
+    workflowDraftResult={...data.workflow,description,assetId};
+    const priority=String(workflowDraftResult.priority||'medium').toLowerCase();
+    const priorityClass=priority==='critical'?'crit':priority==='high'?'warn':priority==='medium'?'info':'good';
+    const dueLabel=workflowDraftResult.dueDate?new Date(workflowDraftResult.dueDate+'T00:00:00').toLocaleDateString():'To be scheduled';
+    result.innerHTML=`
+      <section style="padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--panel);">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <div><div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);">Recommended work order</div><h4 style="margin:4px 0 0;font-size:17px;">${escapeHtml(workflowDraftResult.title||'Facilities task')}</h4></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="pill ${priorityClass}">${escapeHtml(priority.charAt(0).toUpperCase()+priority.slice(1))} priority</span><span class="pill neutral">${escapeHtml(workflowDraftResult.type||'corrective')}</span></div>
+        </div>
+        <p style="margin:12px 0;color:var(--ink-soft);">${escapeHtml(workflowDraftResult.summary||'Review the issue and confirm the recommended response.')}</p>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;padding:12px;background:var(--bg);border-radius:8px;">
+          <div><small style="color:var(--ink-soft);">Suggested response window</small><div style="font-weight:600;">${Number(workflowDraftResult.slaHours)||'—'} hours</div></div>
+          <div><small style="color:var(--ink-soft);">Suggested target date</small><div style="font-weight:600;">${escapeHtml(dueLabel)}</div></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;margin:12px 0 6px;">Suggested next steps</div>
+        <ol style="margin:0;padding-left:20px;color:var(--ink-soft);">${(workflowDraftResult.nextSteps||[]).map(step=>'<li style="padding:2px 0;">'+escapeHtml(step)+'</li>').join('')}</ol>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--ink-soft);">Review the recommendation, select an assigned worker, then submit it to HQ/admin for approval.</div>
+        <button class="btn btn-accent btn-sm" style="margin-top:12px;" onclick="useWorkflowDraft()">Review in work order form →</button>
+      </section>`;
+  }catch(error){result.innerHTML='<div class="banner" style="margin:0;">'+escapeHtml(error.message||'Could not generate a workflow recommendation.')+'</div>';}
+  finally{button.disabled=false;button.textContent='Generate recommendation';}
 }
 function useWorkflowDraft(){
-  if(!workflowDraftResult) return;
-  closeModal(); goToView('workorder-create');
+  if(!workflowDraftResult)return;
+  closeModal();goToView('workorder-create');
   const asset=assetById(workflowDraftResult.assetId||'');
   document.getElementById('page-wo-title').value=workflowDraftResult.title||'';
   document.getElementById('page-wo-asset').value=asset?(asset.tag||asset.assetTag||asset.id):'';
-  const priority=String(workflowDraftResult.priority||'Medium').toLowerCase();
+  if(asset&&asset.centreId)document.getElementById('page-wo-facility').value=asset.centreId;
+  const priority=String(workflowDraftResult.priority||'medium').toLowerCase();
   document.getElementById('page-wo-priority').value=priority==='critical'?'Urgent':priority.charAt(0).toUpperCase()+priority.slice(1);
   document.getElementById('page-wo-description').value=`${workflowDraftResult.description||''}\n\nRecommended next steps:\n- ${(workflowDraftResult.nextSteps||[]).join('\n- ')}`;
 }
@@ -1838,7 +1864,7 @@ function renderWorkOrderCreatePage(){
   const note=document.getElementById('page-wo-sla-note');
   if(note){
     const byPriority=Object.fromEntries((DATA.slaRules||[]).map(x=>[String(x.priority).toLowerCase(),x.response]));
-    note.textContent='Prototype SLA defaults: Urgent '+(byPriority.urgent||'1 hour')+' · High '+(byPriority.high||'4 hours')+' · Medium '+(byPriority.medium||'24 hours')+' · Low '+(byPriority.low||'72 hours')+'. These are illustrative only and must be replaced with approved contract rules.';
+    note.textContent='Configured SLA response targets: Urgent '+(byPriority.urgent||'Not configured')+' · High '+(byPriority.high||'Not configured')+' · Medium '+(byPriority.medium||'Not configured')+' · Low '+(byPriority.low||'Not configured')+'. Targets follow the active contract rules.';
   }
 }
 async function saveWorkOrderPage(){
