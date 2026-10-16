@@ -11,6 +11,8 @@ Facilities management app with a browser interface and a Node.js server for auth
 
 The server stores application data in `data/state.json` by default. Keep `.env` and `data/` private; neither belongs in source control. Configure email, Microsoft Graph, WhatsApp, or AI integrations only with server-side secrets in the host environment.
 
+The PID Report generator and Worker AI Assistant require `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` on the host, plus either `AZURE_OPENAI_API_KEY` or a managed identity with access to the Azure OpenAI resource. These settings are not committed to GitHub.
+
 ## Repository contents
 
 - `index.html` — app interface
