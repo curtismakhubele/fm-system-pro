@@ -342,7 +342,7 @@
 </head>
 <body>
 
-<div class="login-gate" id="login-gate">
+<div class="login-gate active" id="login-gate">
   <div class="login-card">
     <div class="login-logo" id="login-logo-slot"></div>
     <h1>PID Facilities Management</h1>
@@ -903,6 +903,11 @@ const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:4310
 const apiUrl = path => API_ORIGIN + path;
 const apiOrigins = localHost && window.location.protocol !== 'file:' && !/:(4310)$/.test(window.location.origin)
   ? [window.location.origin, 'http://localhost:4310', 'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net'] : [API_ORIGIN];
+function fetchWithTimeout(url, options={}, timeoutMs=8000){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{return await fetch(url,{...options,signal:controller.signal});}
+  finally{clearTimeout(timer);}
+}
 async function apiFetch(path, options={}) {
   const storedToken = localStorage.getItem('pid_session_token');
   const headers = { ...(options.headers || {}) };
@@ -911,7 +916,7 @@ async function apiFetch(path, options={}) {
   let lastError;
   for (const origin of apiOrigins) {
     try {
-      const response = await fetch(origin + path, mergedOptions);
+      const response = await fetchWithTimeout(origin + path, mergedOptions);
       if (response.ok || response.status < 500 || origin === apiOrigins[apiOrigins.length - 1]) return response;
     } catch (error) { lastError = error; }
   }
@@ -1012,8 +1017,8 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[]centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
-    internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0}seq:{asset:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
+    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
+    internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
 
@@ -1134,7 +1139,7 @@ function setMicrosoftSession(identities){
   msAuth.canWriteFiles = ['Files.ReadWrite','Files.ReadWrite.All','Sites.ReadWrite.All'].some(scope=>scopes.has(scope));
 }
 async function readMicrosoftSession(){
-  const res = await fetch('/.auth/me', { credentials:'same-origin', cache:'no-store' });
+  const res = await fetchWithTimeout('/.auth/me', { credentials:'same-origin', cache:'no-store' });
   if(res.status===404){ msAuth.available = false; setMicrosoftSession([]); return; }
   if(res.status===401 || res.status===403){ msAuth.available = true; setMicrosoftSession([]); return; }
   if(!res.ok) throw new Error('Microsoft authentication status unavailable');
@@ -1144,7 +1149,7 @@ async function readMicrosoftSession(){
 async function getGraphAccessToken(scope){
   if(!msAuth.account) return null;
   if(msAuth.expiresOn && msAuth.expiresOn - Date.now() < 120000){
-    const refresh = await fetch('/.auth/refresh', { credentials:'same-origin', cache:'no-store' });
+    const refresh = await fetchWithTimeout('/.auth/refresh', { credentials:'same-origin', cache:'no-store' });
     if(!refresh.ok) throw new Error('Microsoft session expired. Sign in again.');
     await readMicrosoftSession();
   }
