@@ -410,7 +410,7 @@
       <div class="navgroup" data-roles="admin,hq,centre,technician,intern">
         <div class="label" onclick="toggleNavGroup(this)">Operations<span class="chev">â–¾</span></div>
         <div class="navitem" data-view="assets" data-roles="admin,hq,centre,technician,intern"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 12.5 20.5a1.5 1.5 0 0 1-2.1 0L3 13V4h9z"/><circle cx="7.4" cy="7.4" r="1.4"/></svg></span>Assets<span class="badge" id="nav-assets-count">0</span></div>
-        <div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
+        <div class="navitem" data-view="asset-transfer" data-roles="admin,hq,centre,technician,intern"><span class="navicon">⇄</span>Asset transfer &amp; disposal register<span class="badge" id="nav-atd-count">0</span></div><div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
         <div class="navitem" data-view="maintenance" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.6"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.6"/></svg></span>Preventive Maintenance<span class="badge" id="nav-pm-count">0</span></div>
         <div class="navitem" data-view="contractors" data-roles="admin,hq,centre"><span class="navicon">♙</span>Contractors &amp; Contracts<span class="badge" id="nav-contractor-count">0</span></div>
         <div class="navitem" data-view="sla" data-roles="admin,hq,centre"><span class="navicon">◉</span>SLA Monitoring</div>
@@ -544,13 +544,24 @@
     <!-- ASSETS -->
     <section class="view" id="view-assets">
       <div class="topbar"><div><h1>Asset Register</h1><div class="meta">Manage, locate and count every maintainable asset across your centres.</div></div><div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">⇩ Export CSV</button><button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">⇧ Import CSV</button><input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)"><button class="btn btn-accent" onclick="openAssetModal()">＋ Register asset</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">⇩ Export CSV</button><button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">⇧ Import CSV</button><input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)"><button class="btn btn-ghost" onclick="goToView('asset-transfer')">Asset transfer &amp; disposal register</button><button class="btn btn-accent" onclick="openAssetModal()">＋ Register asset</button>
       </div></div>
       <div class="asset-register-stats"><div class="asset-register-stat"><div class="asset-register-label">Total asset units</div><strong id="asset-total-units">0</strong><small>Across visible centres</small></div><div class="asset-register-stat"><div class="asset-register-label">Asset records</div><strong id="asset-total-records">0</strong><small>Registered inventory lines</small></div><div class="asset-register-stat"><div class="asset-register-label">Operational units</div><strong id="asset-operational-units">0</strong><small>Marked operational</small></div><div class="asset-register-stat"><div class="asset-register-label">Need attention</div><strong id="asset-attention-units">0</strong><small>Faulty, poor or under maintenance</small></div></div>
       <section class="panel asset-register-panel"><div class="asset-register-panel-head"><div><h2>Inventory by discipline</h2><p>Select a category to filter the asset register.</p></div><span class="muted" id="asset-centre-summary">All centres</span></div><div class="asset-register-categories" id="asset-categories"></div></section>
       <section class="panel asset-register-panel"><div class="asset-register-panel-head"><div><h2>Asset inventory</h2><p>Quantities are totalled automatically from the records below.</p></div><button class="btn btn-ghost btn-sm" onclick="clearAssetFilters()">Clear filters</button></div>
         <div class="asset-register-filters"><input id="asset-search" placeholder="Search asset, ID, room or centre…" aria-label="Search assets"><select id="asset-centre-filter" aria-label="Filter by centre"><option value="">All centres</option></select><select id="asset-discipline-filter" aria-label="Filter by discipline"><option value="">All disciplines</option><option>Electrical</option><option>Mechanical</option><option>Civil</option><option>Plumbing</option><option>General items</option></select><select id="asset-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option value="operational">Operational</option><option value="maintenance">Under maintenance</option><option value="down">Faulty</option><option value="decommissioned">Decommissioned</option></select></div>
         <div class="table-wrap asset-register-table-wrap"><table><thead><tr><th>Asset / ID</th><th>Centre &amp; location</th><th>Discipline</th><th>Quantity</th><th>Condition</th><th>Status</th><th>Assigned worker</th><th>Value</th><th>Actions</th></tr></thead><tbody id="assets-body"></tbody></table><div class="empty" id="assets-empty" style="display:none;"><div class="big">No assets registered yet</div>Select <b>Register asset</b> to start building your inventory.</div></div></section>
+    </section>
+
+    <!-- ASSET TRANSFER & DISPOSAL REGISTER -->
+    <section class="view" id="view-asset-transfer">
+      <div class="topbar"><div><h1>Asset transfer &amp; disposal register</h1><div class="meta">Submit asset movement and disposal requests, record approvals and keep the asset history together.</div></div><div class="topbar-actions"><button class="btn btn-ghost" onclick="goToView('assets')">← Back to Asset Register</button><button class="btn btn-ghost btn-sm" onclick="exportAssetTransferCSV()">⇩ Export CSV</button><button class="btn btn-accent" onclick="openAssetTransferRequest()">＋ New request</button></div></div>
+      <div class="kpi-row" id="atd-kpis"></div>
+      <div class="panel">
+        <div class="asset-register-filters"><input id="atd-search" placeholder="Search reference, asset, reason or destination…" aria-label="Search transfer and disposal records"><select id="atd-action-filter" aria-label="Filter by action"><option value="">All actions</option><option>Transfer</option><option>Disposal</option></select><select id="atd-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option>Requested</option><option>Approved</option><option>In progress</option><option>Completed</option><option>Rejected</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Asset</th><th>Action</th><th>Request date</th><th>Destination / method</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody id="atd-body"></tbody></table><div class="empty" id="atd-empty" style="display:none;"><div class="big">No transfer or disposal records</div>Submit a request to start the register.</div></div>
+      </div>
+      <div class="note" style="margin-top:10px;">Only Admin/HQ can approve or reject requests. Completing an approved transfer updates the linked asset location and assignment; completing a disposal marks the asset decommissioned while retaining its record.</div>
     </section>
 
     <!-- WORK ORDERS -->
@@ -973,6 +984,8 @@ function normalizeData(){
   if(!DATA.adminSettings.organisationName && DATA.orgName) DATA.adminSettings.organisationName=DATA.orgName;
   if(!DATA.adminSettings.m365Folder) DATA.adminSettings.m365Folder=DATA.sharepointFolder||'PID Facilities Reports';
   if(!DATA.adminSettings.m365SiteId) DATA.adminSettings.m365SiteId=DATA.sharepointSiteId||'';
+  if(!Array.isArray(DATA.assetTransfers)) DATA.assetTransfers = [];
+  if(!DATA.seq.atd) DATA.seq.atd = 0;
   if(!DATA.assets) DATA.assets = [];
   if(!DATA.workOrders) DATA.workOrders = [];
   if(!DATA.pmTasks) DATA.pmTasks = [];
@@ -999,8 +1012,8 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
-    internChecklists:{}, seq:{asset:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
+    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[]centres:[], users:[], assets:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
+    internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0}seq:{asset:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
 
@@ -1694,6 +1707,80 @@ function renderAssets(){
 }
 function clearAssetFilters(){['asset-search','asset-centre-filter','asset-discipline-filter','asset-status-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});assetRegisterDiscipline='';renderAssets();}
 document.addEventListener('input',e=>{if(e.target?.id==='asset-search')renderAssets();});document.addEventListener('change',e=>{if(['asset-centre-filter','asset-discipline-filter','asset-status-filter'].includes(e.target?.id)){if(e.target.id==='asset-discipline-filter'&&e.target.value)assetRegisterDiscipline='';renderAssets();}});
+
+/* ---------- ASSET TRANSFER & DISPOSAL REGISTER ---------- */
+function canReviewAssetTransfer(){return ['admin','superadmin','hq'].includes(state.role);}
+function assetTransferDate(){return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function openAssetTransferRequest(){
+  if(!Array.isArray(DATA.assets)||!DATA.assets.length){showToast('Register an asset before requesting a transfer or disposal');return;}
+  const options=DATA.assets.map(a=>'<option value="'+escapeAttr(a.id)+'">'+escapeHtml((a.name||'Asset')+' · '+(a.serialNumber||a.tag||a.id))+'</option>').join('');
+  const centreOpts='<option value="">Keep current centre</option>'+DATA.centres.map(c=>'<option value="'+escapeAttr(c.id)+'">'+escapeHtml(c.name)+'</option>').join('');
+  const workerOpts='<option value="">Keep current assignment</option>'+DATA.users.map(u=>'<option value="'+escapeAttr(u.id)+'">'+escapeHtml(u.name||u.email||u.id)+'</option>').join('');
+  const by=msAuth.user&&(msAuth.user.name||msAuth.user.email)||state.role;
+  openModal('<h3>New asset transfer or disposal request</h3><div class="modal-sub">Requests are saved to the shared register and must be approved by Admin/HQ.</div>'+
+    '<div class="field"><label>Asset *</label><select id="atd-asset" required onchange="updateAssetTransferPreview()">'+options+'</select></div><div id="atd-asset-preview" class="banner" style="margin:8px 0 14px;"></div>'+
+    '<div class="row2"><div class="field"><label>Action *</label><select id="atd-action" onchange="syncAssetTransferFields()"><option>Transfer</option><option>Disposal</option></select></div><div class="field"><label>Request date *</label><input id="atd-req-date" type="date" value="'+assetTransferDate()+'"></div></div>'+
+    '<div class="field"><label>Requested by</label><input id="atd-requested-by" value="'+escapeAttr(by||'')+'"></div><div class="field"><label>Reason *</label><textarea id="atd-reason" required placeholder="Explain why the asset must be transferred or disposed of."></textarea></div>'+
+    '<div id="atd-transfer-fields"><h4>Transfer destination</h4><div class="field"><label>Destination location / custodian *</label><input id="atd-transfer-to" placeholder="Building, room or custodian"></div><div class="row2"><div class="field"><label>Destination centre</label><select id="atd-transfer-centre">'+centreOpts+'</select></div><div class="field"><label>Assigned worker</label><select id="atd-transfer-worker">'+workerOpts+'</select></div></div><div class="field"><label>Transfer date</label><input id="atd-transfer-date" type="date"></div></div>'+
+    '<div id="atd-disposal-fields" style="display:none;"><h4>Disposal details</h4><div class="row2"><div class="field"><label>Disposal method *</label><select id="atd-method"><option value="">Select method</option><option>Public auction</option><option>Tender / quotation</option><option>Sale to staff</option><option>Donation</option><option>Trade-in</option><option>Scrapping / destruction</option><option>Recycling / e-waste</option><option>Write-off (loss / theft)</option></select></div><div class="field"><label>Expected proceeds (R)</label><input id="atd-proceeds" type="number" min="0" step="0.01"></div></div><div class="field"><label>Target disposal date</label><input id="atd-disposal-date" type="date"></div></div>'+
+    '<div class="field"><label>Remarks</label><textarea id="atd-remarks" placeholder="Optional supporting notes"></textarea></div>'+
+    '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAssetTransferRequest()">Submit request</button></div>');
+  updateAssetTransferPreview();syncAssetTransferFields();
+}
+function updateAssetTransferPreview(){
+  const id=document.getElementById('atd-asset')?.value,a=assetById(id),box=document.getElementById('atd-asset-preview');if(!box)return;
+  box.innerHTML=a?'<b>'+escapeHtml(a.name||'Asset')+'</b> · '+escapeHtml(a.serialNumber||a.tag||a.id)+' · '+escapeHtml((centreById(a.centreId)||{}).name||'No centre')+' · '+escapeHtml([a.building,a.location].filter(Boolean).join(' / ')||'Location not specified'):'Select an asset';
+}
+function syncAssetTransferFields(){
+  const disposal=document.getElementById('atd-action')?.value==='Disposal',transfer=document.getElementById('atd-transfer-fields'),disp=document.getElementById('atd-disposal-fields');
+  if(transfer)transfer.style.display=disposal?'none':'';if(disp)disp.style.display=disposal?'':'none';
+}
+async function saveAssetTransferRequest(){
+  const asset=assetById(document.getElementById('atd-asset')?.value),action=document.getElementById('atd-action')?.value||'Transfer',reason=document.getElementById('atd-reason')?.value.trim()||'';
+  if(!asset){showToast('Select an asset');return;}if(!reason){showToast('Enter the reason for this request');return;}
+  if(action==='Transfer'&&!document.getElementById('atd-transfer-to')?.value.trim()){showToast('Enter the transfer destination');return;}
+  if(action==='Disposal'&&!document.getElementById('atd-method')?.value){showToast('Select a disposal method');return;}
+  const record={id:nextId('ATD','atd'),ref:'ATD-'+String(DATA.seq.atd).padStart(4,'0'),assetId:asset.id,assetNo:asset.serialNumber||asset.tag||asset.id,desc:asset.name||'',category:asset.discipline||asset.category||'',serial:asset.serialNumber||asset.tag||'',location:[asset.building,asset.location].filter(Boolean).join(' / '),custodian:(userById(asset.assignedWorkerId)||{}).name||'',acqDate:asset.recordedDate||asset.purchaseDate||'',cost:Number(asset.value)||0,condition:asset.condition||'',action,reason,reqDate:document.getElementById('atd-req-date')?.value||assetTransferDate(),requestedBy:document.getElementById('atd-requested-by')?.value.trim()||'',approvedBy:'',apprDate:'',status:'Requested',transferTo:action==='Transfer'?document.getElementById('atd-transfer-to')?.value.trim()||'':'',transferCentreId:action==='Transfer'?document.getElementById('atd-transfer-centre')?.value||'':'',transferWorkerId:action==='Transfer'?document.getElementById('atd-transfer-worker')?.value||'':'',transferDate:action==='Transfer'?document.getElementById('atd-transfer-date')?.value||'':'',method:action==='Disposal'?document.getElementById('atd-method')?.value||'':'',disposalDate:action==='Disposal'?document.getElementById('atd-disposal-date')?.value||'':'',proceeds:action==='Disposal'?Number(document.getElementById('atd-proceeds')?.value)||0:0,remarks:document.getElementById('atd-remarks')?.value.trim()||'',appliedAt:''};
+  DATA.assetTransfers.push(record);await persist();closeModal();renderAll();showToast('Request submitted for Admin/HQ approval');
+}
+async function reviewAssetTransfer(action,id){
+  if(!canReviewAssetTransfer()){showToast('Only Admin/HQ can review asset transfer and disposal requests');return;}
+  const record=(DATA.assetTransfers||[]).find(x=>x.id===id);if(!record)return;const actor=msAuth.user&&(msAuth.user.name||msAuth.user.email)||state.role;
+  if(action==='approve'&&record.status==='Requested'){record.status='Approved';record.approvedBy=actor;record.apprDate=assetTransferDate();}
+  else if(action==='reject'&&record.status==='Requested'){record.status='Rejected';record.approvedBy=actor;record.apprDate=assetTransferDate();}
+  else if(action==='start'&&record.status==='Approved'){record.status='In progress';}
+  else if(action==='complete'&&record.status==='In progress'){
+    if(!confirm('Complete this '+record.action.toLowerCase()+' and update the linked asset record?'))return;
+    const asset=assetById(record.assetId);
+    if(asset&&!record.appliedAt){if(record.action==='Disposal')asset.status='decommissioned';else{if(record.transferTo)asset.location=record.transferTo;if(record.transferCentreId)asset.centreId=record.transferCentreId;if(record.transferWorkerId)asset.assignedWorkerId=record.transferWorkerId;}record.appliedAt=assetTransferDate();}
+    if(record.action==='Transfer'&&!record.transferDate)record.transferDate=assetTransferDate();if(record.action==='Disposal'&&!record.disposalDate)record.disposalDate=assetTransferDate();record.status='Completed';
+  }else{showToast('This request cannot move to that status');return;}
+  await persist();renderAll();showToast('Request updated');
+}
+function renderAssetTransfers(){
+  const body=document.getElementById('atd-body');if(!body)return;
+  const records=Array.isArray(DATA.assetTransfers)?DATA.assetTransfers:[],q=(document.getElementById('atd-search')?.value||'').trim().toLowerCase(),action=document.getElementById('atd-action-filter')?.value||'',status=document.getElementById('atd-status-filter')?.value||'';
+  const visible=records.filter(r=>(!action||r.action===action)&&(!status||r.status===status)&&(!q||[r.ref,r.assetNo,r.desc,r.reason,r.transferTo,r.method,r.requestedBy].join(' ').toLowerCase().includes(q)));
+  const count=records.length,pending=records.filter(r=>['Requested','Approved','In progress'].includes(r.status)).length,done=records.filter(r=>r.status==='Completed').length,kpis=document.getElementById('atd-kpis');
+  if(kpis)kpis.innerHTML=[['Requests',count],['Awaiting review',records.filter(r=>r.status==='Requested').length],['In progress',records.filter(r=>r.status==='In progress').length],['Completed',done],['Pending overall',pending]].map(([label,value])=>'<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+value+'</div></div>').join('');
+  const navCount=document.getElementById('nav-atd-count');if(navCount)navCount.textContent=count;
+  body.innerHTML=visible.map(r=>{
+    const asset=assetById(r.assetId),destination=r.action==='Transfer'?r.transferTo:(r.method||'Disposal'),approval=r.approvedBy?escapeHtml(r.approvedBy)+(r.apprDate?' · '+escapeHtml(r.apprDate):''):'Pending';let buttons='<span class="muted">—</span>';
+    if(canReviewAssetTransfer()){
+      if(r.status==='Requested')buttons='<button class="btn btn-accent btn-sm" onclick="reviewAssetTransfer(&quot;approve&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Approve</button> <button class="btn btn-danger btn-sm" onclick="reviewAssetTransfer(&quot;reject&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Reject</button>';
+      else if(r.status==='Approved')buttons='<button class="btn btn-ghost btn-sm" onclick="reviewAssetTransfer(&quot;start&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Start</button>';
+      else if(r.status==='In progress')buttons='<button class="btn btn-accent btn-sm" onclick="reviewAssetTransfer(&quot;complete&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Complete</button>';
+    }
+    return '<tr><td><b>'+escapeHtml(r.ref)+'</b><div class="asset-register-sub">'+escapeHtml(r.reason)+'</div></td><td><div class="asset-register-main">'+escapeHtml(r.desc)+'</div><div class="asset-register-sub">'+escapeHtml(r.assetNo)+(asset?' · '+escapeHtml((centreById(asset.centreId)||{}).name||''):' · asset no longer active')+'</div></td><td>'+escapeHtml(r.action)+'</td><td>'+escapeHtml(r.reqDate||'—')+'<div class="asset-register-sub">By '+escapeHtml(r.requestedBy||'—')+'</div></td><td>'+escapeHtml(destination||'—')+(r.action==='Disposal'&&r.proceeds?' <div class="asset-register-sub">Proceeds R '+fmtMoney(r.proceeds)+'</div>':'')+'</td><td>'+approval+'</td><td>'+pill(r.status||'Requested')+'</td><td>'+buttons+'</td></tr>';
+  }).join('');
+  const empty=document.getElementById('atd-empty');if(empty)empty.style.display=visible.length?'none':'block';
+}
+function exportAssetTransferCSV(){
+  const cols=[{key:'ref',label:'Reference'},{key:'assetNo',label:'Asset number'},{key:'desc',label:'Asset description'},{key:'action',label:'Action'},{key:'reason',label:'Reason'},{key:'reqDate',label:'Request date'},{key:'requestedBy',label:'Requested by'},{key:'transferTo',label:'Transfer destination'},{key:'method',label:'Disposal method'},{key:'proceeds',label:'Proceeds (R)'},{key:'approvedBy',label:'Approved / rejected by'},{key:'apprDate',label:'Approval date'},{key:'status',label:'Status'},{key:'remarks',label:'Remarks'}];
+  downloadText('pid-fm-asset-transfer-disposal-register.csv',toCSV(cols,DATA.assetTransfers||[]));
+}
+document.addEventListener('input',e=>{if(e.target?.id==='atd-search')renderAssetTransfers();});
+document.addEventListener('change',e=>{if(['atd-action-filter','atd-status-filter'].includes(e.target?.id))renderAssetTransfers();});
 
 /* ---------- WORK ORDERS ---------- */
 let workflowDraftResult = null;
@@ -3166,6 +3253,8 @@ function renderAll(){
   renderAdmin();
   renderCentres();
   renderAssets();
+  renderAssetTransfers();
+  renderWorkOrders();  renderAssets();
   renderWorkOrders();
   renderWorkOrderCreatePage();
   renderPM();
