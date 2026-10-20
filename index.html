@@ -903,7 +903,7 @@ const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:4310
 const apiUrl = path => API_ORIGIN + path;
 const apiOrigins = localHost && window.location.protocol !== 'file:' && !/:(4310)$/.test(window.location.origin)
   ? [window.location.origin, 'http://localhost:4310', 'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net'] : [API_ORIGIN];
-function fetchWithTimeout(url, options={}, timeoutMs=8000){
+async function fetchWithTimeout(url, options={}, timeoutMs=8000){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{return await fetch(url,{...options,signal:controller.signal});}
   finally{clearTimeout(timer);}
