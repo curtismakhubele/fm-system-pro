@@ -19,6 +19,26 @@
   body.theme-white{
     --bg:#FFFFFF; --panel:#FFFFFF; --border:#E9EBE8;
   }
+  body.theme-ocean{--bg:#EAF2F6;--panel:#fff;--ink:#122433;--ink-soft:#546A78;--sidebar:#12364B;--sidebar-soft:#B7D0DC;--border:#D3E1E8;--accent:#18A6A1;--good:#27866F;--good-bg:#E1F3EE;--warn:#C47B26;--warn-bg:#FFF2DE;--crit:#C34F4A;--crit-bg:#FBE8E6;--info:#347CB6;--info-bg:#E6F1F9;--purple:#7B65B0;--purple-bg:#EFEAFA}
+  body.theme-forest{--bg:#EFF3EC;--panel:#fff;--ink:#1C2A22;--ink-soft:#5F6E63;--sidebar:#203B2D;--sidebar-soft:#C0D1C4;--border:#D8E1D5;--accent:#78A85A;--good:#32836B;--good-bg:#E3F1E8;--warn:#BC7A2D;--warn-bg:#FBF0DF;--crit:#B84D46;--crit-bg:#F9E7E4;--info:#4B79A2;--info-bg:#E8F0F6;--purple:#78639D;--purple-bg:#F0EBF7}
+  body.theme-midnight{--bg:#101722;--panel:#182230;--ink:#E7EDF4;--ink-soft:#A6B2C0;--sidebar:#0B111A;--sidebar-soft:#A7B4C4;--border:#2D3948;--accent:#65C7C0;--good:#5AC6A2;--good-bg:#183B36;--warn:#F0B45D;--warn-bg:#44351F;--crit:#F07B72;--crit-bg:#452725;--info:#7CB8EF;--info-bg:#1F354B;--purple:#B59BE8;--purple-bg:#332B49}
+  body.theme-midnight .search,body.theme-midnight .search-results,body.theme-midnight input,body.theme-midnight select,body.theme-midnight textarea{background-color:#182230;color:var(--ink);border-color:var(--border)}
+  body.theme-midnight .panel,body.theme-midnight .card,body.theme-midnight .modal,body.theme-midnight .table-wrap,body.theme-midnight .stat-card{background-color:var(--panel);color:var(--ink);border-color:var(--border)}
+  .app-loader{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(13,22,31,.72);backdrop-filter:blur(8px);transition:opacity .25s ease,visibility .25s ease}
+  .app-loader.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+  .app-loader-card{width:min(360px,100%);padding:30px 28px;text-align:center;color:#152638;background:#fff;border:1px solid rgba(255,255,255,.55);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+  .app-loader-mark{width:54px;height:54px;margin:0 auto 16px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#E4F4F1,#F8EAD6);color:#237B77;font-size:17px;font-weight:700;letter-spacing:1px}
+  .app-loader-spinner{width:28px;height:28px;margin:0 auto 14px;border:3px solid #E4E9EC;border-top-color:#198C87;border-radius:50%;animation:pid-spin .8s linear infinite}
+  .app-loader-title{font:700 15px var(--font-display);margin-bottom:4px}
+  .app-loader-copy{font-size:12px;color:#687783}
+  .app-loader-track{height:3px;margin-top:18px;overflow:hidden;background:#EAF0F1;border-radius:99px}
+  .app-loader-track:after{content:'';display:block;width:38%;height:100%;background:linear-gradient(90deg,#198C87,#D98C2B);border-radius:inherit;animation:pid-load-progress 1.4s ease-in-out infinite}
+  .btn.is-loading{position:relative;pointer-events:none;opacity:.82;padding-left:38px}
+  .btn.is-loading:before{content:'';position:absolute;left:14px;top:50%;width:14px;height:14px;margin-top:-8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:pid-spin .7s linear infinite}
+  @keyframes pid-spin{to{transform:rotate(360deg)}}
+  @keyframes pid-load-progress{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+  @media(prefers-reduced-motion:reduce){.app-loader-spinner,.app-loader-track:after,.btn.is-loading:before{animation-duration:2s}}
+
   body.theme-white .sidebar{ background:#FFFFFF; border-right:1px solid var(--border); }
   body.theme-white .brand-text .name{ color:var(--ink); }
   body.theme-white .brand{ border-bottom-color:var(--border); }
@@ -341,6 +361,16 @@
   .asset-register-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}.asset-register-stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}.asset-register-label{font-size:12px;color:var(--ink-soft)}.asset-register-stat strong{display:block;font:700 27px var(--font-display);margin:8px 0 1px}.asset-register-stat small,.asset-register-panel-head p{color:var(--ink-soft);font-size:11px}.asset-register-panel{overflow:hidden}.asset-register-panel-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}.asset-register-panel-head h2{font-size:16px;margin:0}.asset-register-panel-head p{margin:3px 0 0}.asset-register-categories{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px}.asset-register-category{border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:12px;text-align:left;color:var(--ink);cursor:pointer}.asset-register-category:hover,.asset-register-category.selected{border-color:var(--accent);background:var(--warn-bg)}.asset-register-category-icon{font-size:20px;margin-bottom:7px}.asset-register-category-name{font-weight:700}.asset-register-category-count{font:700 21px var(--font-display);margin-top:5px}.asset-register-category-caption{font-size:10px;color:var(--ink-soft)}.asset-register-filters{display:flex;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)}.asset-register-filters input,.asset-register-filters select{border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--panel);color:var(--ink);min-width:130px}.asset-register-filters input{flex:1;min-width:190px}.asset-register-table-wrap{overflow:auto}.asset-condition{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700}.asset-condition-good{background:var(--good-bg);color:var(--good)}.asset-condition-fair{background:var(--warn-bg);color:var(--warn)}.asset-condition-poor,.asset-condition-damaged{background:var(--crit-bg);color:var(--crit)}.asset-register-table-wrap td{vertical-align:middle}.asset-register-main{font-weight:650}.asset-register-sub{font-size:10px;color:var(--ink-soft);margin-top:2px}@media(max-width:1050px){.asset-register-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-register-categories{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.asset-register-categories{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px}.asset-register-stats{gap:8px}.asset-register-stat{padding:12px}.asset-register-stat strong{font-size:22px}.asset-register-panel-head{padding:13px}}</style>
 </head>
 <body>
+
+<div class="app-loader" id="app-loader" role="status" aria-live="polite" aria-label="Loading application">
+  <div class="app-loader-card">
+    <div class="app-loader-mark" aria-hidden="true">PID</div>
+    <div class="app-loader-spinner" aria-hidden="true"></div>
+    <div class="app-loader-title">Preparing your workspace</div>
+    <div class="app-loader-copy">Connecting securely and loading your facilities data</div>
+    <div class="app-loader-track" aria-hidden="true"></div>
+  </div>
+</div>
 
 <div class="login-gate active" id="login-gate">
   <div class="login-card">
@@ -830,6 +860,9 @@
           <select id="theme-select" onchange="setTheme(this.value)">
             <option value="default">Default</option>
             <option value="white">White</option>
+            <option value="ocean">Ocean</option>
+            <option value="forest">Forest</option>
+            <option value="midnight">Midnight</option>
           </select>
         </div>
       </div>
@@ -944,22 +977,31 @@ let DATA = null;
 let state = { role:'admin', filterCentre:'all', currentInternId:null, myUserId:null, authUsers:[], auditEntries:[], adminSettingsTab:'general' };
 let passwordChangeRequired = false;
 
+function showAppLoader(){ const loader=document.getElementById('app-loader'); if(loader) loader.classList.remove('is-hidden'); }
+function hideAppLoader(){ const loader=document.getElementById('app-loader'); if(loader) loader.classList.add('is-hidden'); }
 async function loadData(){
-  initLoginLogo();
-  await checkMsAuth();
-  if(msAuth.user && (msAuth.user.role==='admin'||msAuth.user.role==='superadmin')){
-    try{ await refreshAuthUsers(); }catch(error){ state.authUsers=[]; }
-  }
+  showAppLoader();
   try{
-    const res = await window.storage.get(STORE_KEY, false);
-    if(res && res.value){ DATA = JSON.parse(res.value); }
-    else { DATA = blankData(); await persist(); }
-  }catch(e){ DATA = blankData(); }
-  normalizeData();
-  resolveMyAccess();
-  renderAll();
-  if(msAuth.user && msAuth.user.mustChangePassword) openPasswordChangeModal(true);
+    initLoginLogo();
+    try{ await checkMsAuth(); }catch(error){ console.warn('Account check failed; continuing with app sign-in.',error); }
+    if(msAuth.user && (msAuth.user.role==='admin'||msAuth.user.role==='superadmin')){
+      try{ await refreshAuthUsers(); }catch(error){ state.authUsers=[]; }
+    }
+    try{
+      const res = await window.storage.get(STORE_KEY, false);
+      if(res && res.value){ DATA = JSON.parse(res.value); }
+      else { DATA = blankData(); await persist(); }
+    }catch(e){ DATA = blankData(); }
+    normalizeData();
+    resolveMyAccess();
+    renderAll();
+    if(msAuth.user && msAuth.user.mustChangePassword) openPasswordChangeModal(true);
+  }catch(error){
+    console.error('Application startup failed',error);
+    showToast('Some app data could not be loaded. Refresh to try again.');
+  }finally{ hideAppLoader(); }
 }
+
 function normalizeData(){
   if(!DATA.centres) DATA.centres = [];
   if(!Array.isArray(DATA.programmeReports)) DATA.programmeReports = [];
@@ -973,7 +1015,7 @@ function normalizeData(){
   if(!DATA.seq.dl) DATA.seq.dl = 0;
   if(!DATA.documents) DATA.documents = [];
   if(!DATA.seq.doc) DATA.seq.doc = 0;
-  if(!DATA.theme) DATA.theme = 'default';
+  if(!APP_THEMES.includes(DATA.theme)) DATA.theme = 'default';
   if(!DATA.sharepointFolder) DATA.sharepointFolder = 'PID Facilities Reports';
   if(typeof DATA.sharepointSiteId === 'undefined') DATA.sharepointSiteId = '';
   if(DATA.requireMsAuthForAdmin){ DATA.requireMsAuthForAdmin=false; persist(); }
@@ -1402,7 +1444,7 @@ async function signIn(event){
   const error = document.getElementById('login-error'); error.style.display='none';
   const button = event.submitter || event.currentTarget.querySelector('[type="submit"]');
   if(appServerOnline === false){ error.textContent='The live application server cannot be reached. Check your internet connection and try again.'; error.style.display='block'; return; }
-  if(button){ button.disabled=true; button.textContent='Signing in...'; }
+  if(button){ button.disabled=true; button.classList.add('is-loading'); button.textContent='Signing in...'; }
   try{
     const res = await apiFetch('/api/auth/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     if(!res.ok) throw new Error('Invalid email or password.');
@@ -1412,7 +1454,7 @@ async function signIn(event){
     document.getElementById('login-password').value='';
     await loadData();
   }catch(e){ error.textContent=e.message==='Invalid email or password.' ? e.message : 'Cannot reach the live application server. Check your internet connection and try again.'; error.style.display='block'; }
-  finally{ if(button){ button.disabled=false; button.textContent='Sign in'; } }
+  finally{ if(button){ button.disabled=false; button.classList.remove('is-loading'); button.textContent='Sign in'; } }
 }
 function msSignIn(){
   if(msAuth.available===false){ showToast('Microsoft sign-in is unavailable for this app'); return; }
@@ -3049,15 +3091,20 @@ function openWhatsAppChat(){
   window.open('https://wa.me/'+digits+(message?'?text='+encodeURIComponent(message):''),'_blank','noopener,noreferrer');
 }
 function saveOrgName(){ DATA.orgName = document.getElementById('org-name-input').value.trim(); persist(); showToast('Saved'); renderTopbar(); }
+const APP_THEMES=['default','white','ocean','forest','midnight'];
 function setTheme(theme){
-  DATA.theme = theme;
-  document.body.classList.toggle('theme-white', theme === 'white');
+  if(!APP_THEMES.includes(theme)) theme='default';
+  if(!DATA) return;
+  DATA.theme=theme;
+  applyTheme();
   persist();
-  showToast(theme === 'white' ? 'White theme applied' : 'Default theme applied');
+  showToast(theme.charAt(0).toUpperCase()+theme.slice(1)+' theme applied');
 }
 function applyTheme(){
-  document.body.classList.toggle('theme-white', DATA && DATA.theme === 'white');
-  const sel = document.getElementById('theme-select'); if(sel && DATA) sel.value = DATA.theme || 'default';
+  const theme=DATA&&APP_THEMES.includes(DATA.theme)?DATA.theme:'default';
+  document.body.classList.remove('theme-white','theme-ocean','theme-forest','theme-midnight');
+  if(theme!=='default') document.body.classList.add('theme-'+theme);
+  const sel=document.getElementById('theme-select'); if(sel) sel.value=theme;
 }
 function toggleRequireMsAuth(checked){ DATA.requireMsAuthForAdmin = checked; persist(); showToast(checked ? 'Admin now requires Microsoft sign-in' : 'Admin sign-in requirement removed'); if(checked) applyRole(state.role); }
 function saveSharePointConfig(){
