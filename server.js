@@ -425,299 +425,76 @@ function pidReportDocx(report,generatedAt){
 
 
 function buildBuiltInPidReport(source, previousReport, intro) {
-  const meta=(label,fallback='Not supplied')=>{const m=source.match(new RegExp('^'+label+':\\s*(.*)
-  const url = new URL(req.url, 'http://localhost'); const state=load();
-  if (req.method==='OPTIONS' && url.pathname.startsWith('/api/')) { res.writeHead(204, corsHeaders(req)); return res.end(); }
-  const apiHeaders = corsHeaders(req);
-  for (const [name, value] of Object.entries(apiHeaders)) res.setHeader(name, value);
-  if (req.method==='GET' && url.pathname==='/api/health') return respond(res,200,{ok:true,authenticated:!!userFor(req,state)},apiHeaders);
-  if (req.method==='GET' && url.pathname==='/api/auth/me') { const user=userFor(req,state); return user ? respond(res,200,{user:publicUser(user)},apiHeaders) : respond(res,401,{error:'Not signed in'},apiHeaders); }
-  if (req.method==='POST' && url.pathname==='/api/auth/login') {
-    const {email='',password=''}=await readJson(req); const user=state.users.find(u=>u.email===String(email).trim().toLowerCase());
-    if(!user || user.suspended || (user.accountExpiresAt && Date.parse(user.accountExpiresAt)<Date.now()) || !passwordMatches(String(password),user)) return respond(res,401,{error:'Invalid credentials'},apiHeaders);
-    user.lastLoginAt=new Date().toISOString();
-    if(!Array.isArray(user.loginHistory)) user.loginHistory=[];
-    user.loginHistory.push({ at:user.lastLoginAt, where:req.socket.remoteAddress||'unknown' });
-    if(user.loginHistory.length>50) user.loginHistory.shift();
-    save(state);
-    const sessionToken = tokenFor(user);
-    return respond(res,200,{user:publicUser(user), sessionToken},{...apiHeaders,'Set-Cookie':sessionCookieOptions(req, sessionToken)});
+  const meta = (label, fallback) => {
+    const line = source.split(/\r?\n/).find(item => item.startsWith(label + ':'));
+    return line ? line.slice(label.length + 1).trim() || fallback : fallback;
+  };
+  const liveMark = 'LIVE APPLICATION RECORDS (captured ';
+  const changeMark = '\n\nCHANGES SINCE THE PREVIOUS GENERATED REPORT:\n';
+  const liveAt = source.indexOf(liveMark);
+  const changeAt = liveAt < 0 ? -1 : source.indexOf(changeMark, liveAt);
+  let data = {}, changes = {}, captured = false, notes = '';
+  if (liveAt >= 0) {
+    try { data = JSON.parse(source.slice(source.indexOf('\n', liveAt) + 1, changeAt < 0 ? source.length : changeAt).trim()); captured = true; } catch {}
   }
-  if (req.method==='POST' && url.pathname==='/api/auth/logout') {
-    const user=userFor(req,state);
-    if(user){ user.sessionVersion=(user.sessionVersion||0)+1; writeAudit(state,user,'user.logout',user.email,req); save(state); }
-    return respond(res,200,{ok:true},{...apiHeaders,'Set-Cookie':sessionCookieOptions(req, '', true)});
-  }
-  if (req.method==='POST' && url.pathname==='/api/auth/change-password') {
-    const user=requireUser(req,res,state); if(!user) return;
-    const body=await readJson(req); const current=String(body.currentPassword||''); const next=String(body.newPassword||'');
-    if(next.length>256) return respond(res,400,{error:'Password must be 256 characters or fewer.'},apiHeaders);
-    const policyError=passwordPolicyError(next,state); if(policyError) return respond(res,400,{error:policyError},apiHeaders);
-    if(!user.mustChangePassword && !passwordMatches(current,user)) return respond(res,400,{error:'Current password is incorrect.'},apiHeaders);
-    const hash=passwordHash(next); user.salt=hash.salt; user.passwordHash=hash.hash; delete user.hash;
-    user.mustChangePassword=false; user.sessionVersion=(user.sessionVersion||0)+1;
-    writeAudit(state,user,'password.changed',user.email,req); save(state);
-    return respond(res,200,{ok:true,message:'Password changed. Sign in with your new password.'},{...apiHeaders,'Set-Cookie':sessionCookieOptions(req, '', true)});
-  }
-  if (url.pathname==='/api/admin/users' && req.method==='GET') {
-    const actor=requireAdmin(req,res,state); if(!actor) return;
-    return respond(res,200,{users:state.users.map(publicUser)});
-  }
-  if (url.pathname==='/api/admin/users' && req.method==='POST') {
-    const actor=requireAdmin(req,res,state); if(!actor) return;
-    const body=await readJson(req); const email=String(body.email||'').trim().toLowerCase();
-    const name=String(body.name||'').trim(); const role=String(body.role||'technician');
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name || !ROLES.has(role)) return respond(res,400,{error:'A valid email, name, and role are required.'},apiHeaders);
-    if(role==='superadmin' && actor.role!=='superadmin') return respond(res,403,{error:'Only a Super Administrator can assign that role.'},apiHeaders);
-    if(state.users.some(user=>user.email===email)) return respond(res,409,{error:'An account with that email already exists.'},apiHeaders);
-    const accountExpiresAt=body.accountExpiresAt||null;
-    if(accountExpiresAt&&!Number.isFinite(Date.parse(accountExpiresAt))) return respond(res,400,{error:'Invalid account expiry date.'},apiHeaders);
-    const temporaryPassword=generatedPassword(); const hash=passwordHash(temporaryPassword);
-    const user={id:crypto.randomUUID(),email,name,role,...hash,mustChangePassword:body.mustChangePassword===undefined?true:!!body.mustChangePassword,accountExpiresAt,loginHistory:[]};
-    state.users.push(user); writeAudit(state,actor,'user.created',email,req); save(state);
-    return respond(res,201,{user:publicUser(user),temporaryPassword});
-  }
-  if (url.pathname.startsWith('/api/admin/users/')) {
-    const actor=requireAdmin(req,res,state); if(!actor) return;
-    const parts=url.pathname.split('/').filter(Boolean); const userId=decodeURIComponent(parts[3]||'');
-    const target=state.users.find(user=>user.id===userId);
-    if(!target) return respond(res,404,{error:'User not found.'},apiHeaders);
-    if(target.role==='superadmin' && actor.role!=='superadmin') return respond(res,403,{error:'Only a Super Administrator can manage that account.'},apiHeaders);
-    if(parts[4]==='reset-password' && req.method==='POST') {
-      const temporaryPassword=generatedPassword(); const hash=passwordHash(temporaryPassword);
-      target.salt=hash.salt; target.passwordHash=hash.hash; delete target.hash;
-      target.mustChangePassword=true; target.sessionVersion=(target.sessionVersion||0)+1;
-      writeAudit(state,actor,'user.password_reset',target.email,req); save(state);
-      return respond(res,200,{user:publicUser(target),temporaryPassword});
-    }
-    if(parts.length===4 && req.method==='PATCH') {
-      const body=await readJson(req);
-      if(body.role!==undefined && !ROLES.has(String(body.role))) return respond(res,400,{error:'Invalid role.'},apiHeaders);
-      if(body.role==='superadmin' && actor.role!=='superadmin') return respond(res,403,{error:'Only a Super Administrator can assign that role.'},apiHeaders);
-      if(body.name!==undefined && !String(body.name).trim()) return respond(res,400,{error:'Name cannot be empty.'},apiHeaders);
-      if(body.accountExpiresAt && !Number.isFinite(Date.parse(body.accountExpiresAt))) return respond(res,400,{error:'Invalid account expiry date.'},apiHeaders);
-      if(target.id===actor.id && (body.role && body.role!=='admin' || body.suspended===true)) return respond(res,400,{error:'You cannot remove your own administrator access.'},apiHeaders);
-      const revokeSessions=(body.role!==undefined && String(body.role)!==target.role) ||
-        (body.suspended!==undefined && !!body.suspended!==!!target.suspended) ||
-        (body.accountExpiresAt!==undefined && (body.accountExpiresAt||null)!==(target.accountExpiresAt||null)) ||
-        (body.mustChangePassword!==undefined && !!body.mustChangePassword!==!!target.mustChangePassword);
-      if(body.name!==undefined) target.name=String(body.name).trim();
-      if(body.role!==undefined) target.role=String(body.role);
-      if(body.suspended!==undefined) target.suspended=!!body.suspended;
-      if(body.accountExpiresAt!==undefined) target.accountExpiresAt=body.accountExpiresAt||null;
-      if(body.mustChangePassword!==undefined) target.mustChangePassword=!!body.mustChangePassword;
-      if(revokeSessions) target.sessionVersion=(target.sessionVersion||0)+1;
-      writeAudit(state,actor,'user.updated',target.email,req); save(state);
-      return respond(res,200,{user:publicUser(target)});
-    }
-    if(parts.length===4 && req.method==='DELETE') {
-      if(target.id===actor.id) return respond(res,400,{error:'You cannot remove your own administrator account.'},apiHeaders);
-      state.users=state.users.filter(user=>user.id!==target.id);
-      writeAudit(state,actor,'user.deleted',target.email,req); save(state);
-      return respond(res,200,{ok:true});
-    }
-  }
-  if (req.method==='GET' && url.pathname==='/api/admin/audit') {
-    const actor=requireAdmin(req,res,state); if(!actor) return;
-    return respond(res,200,{entries:(state.auditLog||[]).slice().reverse()});
-  }
-  if (req.method==='POST' && url.pathname==='/api/ai/workflow') {
-    const user=requireUser(req,res,state); if(!user) return;
-    const body=await readJson(req); const description=String(body.description||'').trim(); const assetName=String(body.assetName||'').trim();
-    if(description.length<10 || description.length>2000) return respond(res,400,{error:'Describe the issue in 10 to 2000 characters.'},apiHeaders);
-    return respond(res,200,{workflow:workflowDraft(description,assetName),description,assetName},apiHeaders);
-  }
-  if(req.method==='POST' && url.pathname==='/api/ai/programme-report'){
-    const user=requireUser(req,res,state);if(!user)return;
-    const body=await readJson(req),source=String(body.source||'').trim();
-    if(source.length<10||source.length>120000)return respond(res,400,{error:'Provide report material of up to 120,000 characters.'},apiHeaders);
-    const intro='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
-    const candidate=body.previousReport&&typeof body.previousReport==='object'?body.previousReport:null;
-    const previousDate=candidate?Date.parse(candidate.generatedAt||''):NaN;
-    const previousReport=Number.isFinite(previousDate)&&previousDate<Date.now()&&candidate.report&&typeof candidate.report==='object'?candidate:null;
-    const previousSections=['Executive Summary','Current Report','Issues','Recommendations','Conclusion'];
-    const previousText=previousReport?JSON.stringify({generatedAt:previousReport.generatedAt,report:Object.fromEntries(previousSections.filter(section=>typeof previousReport.report[section]==='string').map(section=>[section,previousReport.report[section]]))}).slice(0,16000):'';
-    const endpoint=String(process.env.AZURE_OPENAI_ENDPOINT||'').trim();
-    const deployment=String(process.env.AZURE_OPENAI_DEPLOYMENT||'gpt-4.1-mini').trim();
-    if(!endpoint||!deployment){const report=buildBuiltInPidReport(source,previousReport,intro);return respond(res,200,{report,model:'Built-in evidence-based report generator',comparedTo:previousReport?previousReport.generatedAt:null},apiHeaders);}
-    let requestUrl;
-    try{
-      requestUrl=new URL(endpoint);
-      if(requestUrl.protocol!=='https:')return respond(res,503,{error:'AI report endpoint must use HTTPS.'},apiHeaders);
-      requestUrl.pathname=requestUrl.pathname.replace(/\/$/,'')+`/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`;
-      requestUrl.searchParams.set('api-version',String(process.env.AZURE_OPENAI_API_VERSION||'2024-10-21'));
-    }catch(error){return respond(res,503,{error:'AI report endpoint configuration is invalid.'},apiHeaders);}
-    const sections=['Executive Summary','Introduction',...(previousReport?['Previous Report Comparison']:[]),'Current Report','Issues','Recommendations','Conclusion'];
-    const systemPrompt=`You are the OAU-PID programme's PID Report writer. Return one valid JSON object with exactly these string keys: ${sections.join(', ')}. Write a complete, polished, evidence-led management report with clear paragraphs and concrete detail. Executive Summary: about 180-250 words, state purpose, scope, evidence available, key findings, priority issues and decisions/actions required. Introduction must be exactly this paragraph with no text before it: "${intro}" Current Report: about 400-600 words, explain the reporting period, supplied notes, and connected application records, including relevant assets, work orders, preventive maintenance, contractors, SLA targets, projects, incidents, inspections, transfers, facilities, and document activity. Summarize what the recorded evidence supports and flag missing information. The generated Word document includes a complete Application Data Register appendix with the full sanitized records and detected additions, updates, and removals. Where dates, progress, regional breakdowns, inspections, costs or outcome measures were not provided, clearly mark them as not supplied; never fabricate them. Issues: about 150-250 words, describe only evidence-backed issues and identify material evidence gaps. Recommendations: give 6-8 numbered, practical actions; for each, state a responsible role, sequencing or timeframe, and a measurable record or completion check, while labeling these as proposed actions. Conclusion: about 120-180 words, synthesize what the evidence supports, outstanding decisions and the next reporting step. Use only evidence in the current report material and supplied earlier report. Never invent site visits, condition scores, budgets, completed work, dates, regional findings, stakeholder comments, outcomes or changes. If current information is thin, produce a transparent complete report that identifies missing evidence rather than filling gaps with assumptions. ${previousReport?'Previous Report Comparison: about 200-300 words comparing the most recent earlier generated PID Report with the current material. Separate supported changes, continuing issues and items that cannot be compared. If no current evidence can confirm progress, state that clearly; do not claim progress without evidence.':'There is no earlier generated PID Report. Omit Previous Report Comparison entirely.'}`;
-    try{
-      const authHeaders=await azureOpenAIHeaders();
-      const response=await fetch(requestUrl,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:JSON.stringify({
-        model:deployment,temperature:0.2,max_tokens:5000,response_format:{type:'json_object'},
-        messages:[{role:'system',content:systemPrompt},{role:'user',content:JSON.stringify({currentReportMaterial:source,previousReport:previousText||null})}]
-      }),signal:AbortSignal.timeout(60000)});
-      if(!response.ok)return respond(res,502,{error:`PID Report provider returned ${response.status}. Check the deployment and model access.`},apiHeaders);
-      const result=await response.json(),content=result.choices?.[0]?.message?.content;
-      let report;try{report=JSON.parse(content);}catch(error){return respond(res,502,{error:'AI report provider returned invalid structured content.'},apiHeaders);}
-      if(!report||sections.some(section=>typeof report[section]!=='string'||!report[section].trim()))return respond(res,502,{error:'PID Report is missing one or more required sections.'},apiHeaders);
-      report.Introduction=intro;
-      return respond(res,200,{report,model:deployment,comparedTo:previousReport?previousReport.generatedAt:null},apiHeaders);
-    }catch(error){return respond(res,502,{error:'PID Report generation failed. Check model access and managed identity configuration.'},apiHeaders);}
-  }
-  if(req.method==='POST' && url.pathname==='/api/reports/pid-report/docx'){
-    const user=requireUser(req,res,state);if(!user)return;
-    const body=await readJson(req),report=body.report;
-    const required=['Executive Summary','Introduction','Current Report','Issues','Recommendations','Conclusion'];
-    if(!report||typeof report!=='object'||required.some(section=>typeof report[section]!=='string'||!report[section].trim()))return respond(res,400,{error:'The PID Report is incomplete and cannot be exported.'},apiHeaders);
-    if(Object.values(report).some(value=>typeof value!=='string'||value.length>200000))return respond(res,400,{error:'One or more report sections exceed the 200,000-character document limit.'},apiHeaders);
-    const generatedAt=String(body.generatedAt||new Date().toISOString());
-    try{
-      const docx=pidReportDocx(report,generatedAt);
-      res.writeHead(200,{'Content-Type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','Content-Disposition':'attachment; filename="PID-Report.docx"','Cache-Control':'no-store',...apiHeaders});
-      return res.end(docx);
-    }catch(error){return respond(res,400,{error:error.message||'Could not create the Word document.'},apiHeaders);}
-  }
-  if(req.method==='POST' && url.pathname==='/api/notifications/email'){
-    const actor=requireUser(req,res,state);if(!actor)return;
-    if(!['admin','superadmin','hq'].includes(String(actor.role||'').toLowerCase()))return respond(res,403,{error:'Only HQ/admin can send assignment notifications.'},apiHeaders);
-    const host=String(process.env.SMTP_HOST||'').trim(),user=String(process.env.SMTP_USER||'').trim(),pass=String(process.env.SMTP_PASS||'');
-    const port=Number(process.env.SMTP_PORT||587),from=String(process.env.SMTP_FROM||user).trim();
-    if(!host||!user||!pass||!from)return respond(res,503,{error:'Email automation is not configured on this host.'},apiHeaders);
-    const body=await readJson(req),to=String(body.to||'').trim(),subject=String(body.subject||'').trim().slice(0,250),text=String(body.text||'').trim().slice(0,10000);
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!text)return respond(res,400,{error:'A valid recipient, subject and message are required.'},apiHeaders);
-    try{
-      const transporter=nodemailer.createTransport({host,port,secure:port===465,auth:{user,pass}});
-      await transporter.sendMail({from,to,subject,text});
-      return respond(res,200,{ok:true});
-    }catch(error){return respond(res,502,{error:'Email provider could not send the notification. Check SMTP settings.'},apiHeaders);}
-  }
-  if(req.method==='POST' && url.pathname==='/api/notifications/whatsapp'){
-    const actor=requireUser(req,res,state); if(!actor) return;
-    const phoneNumberId=String(process.env.WHATSAPP_PHONE_NUMBER_ID||'').trim();
-    const accessToken=String(process.env.WHATSAPP_ACCESS_TOKEN||'').trim();
-    const template=String(process.env.WHATSAPP_ASSIGNMENT_TEMPLATE||process.env.WHATSAPP_TEMPLATE_NAME||'').trim();
-    const version=String(process.env.WHATSAPP_GRAPH_API_VERSION||process.env.WHATSAPP_GRAPH_VERSION||'v23.0').trim();
-    const language=String(process.env.WHATSAPP_TEMPLATE_LANGUAGE||'en').trim();
-    if(!phoneNumberId||!accessToken||!template) return respond(res,503,{error:'WhatsApp automation is not configured on this host.'},apiHeaders);
-    if(!/^\d+$/.test(phoneNumberId)||!/^v\d+\.\d+$/.test(version)) return respond(res,503,{error:'WhatsApp provider configuration is invalid.'},apiHeaders);
-    const body=await readJson(req); let recipient=String(body.recipient||'').replace(/\D/g,'');
-    if(recipient.length===10&&recipient.startsWith('0')) recipient='27'+recipient.slice(1);
-    if(!/^[1-9]\d{7,14}$/.test(recipient)) return respond(res,400,{error:'A valid international assignee number is required.'},apiHeaders);
-    const fields=['workOrderId','title','asset','priority','dueDate'].map(key=>String(body[key]||'').trim().slice(0,500));
-    if(!fields[0]||!fields[1]) return respond(res,400,{error:'Work order ID and title are required.'},apiHeaders);
-    const payload={messaging_product:'whatsapp',to:recipient,type:'template',template:{name:template,language:{code:language},components:[{type:'body',parameters:fields.map(text=>({type:'text',text:text||'Not specified'}))}]}};
-    try{
-      const response=await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)});
-      if(!response.ok) return respond(res,502,{error:`WhatsApp provider rejected the notification (${response.status}). Check the approved template and recipient.`},apiHeaders);
-      return respond(res,200,{ok:true});
-    }catch(error){ return respond(res,502,{error:'WhatsApp provider could not be reached.'},apiHeaders); }
-  }
-  if (url.pathname.startsWith('/api/storage')) {
-    const user=requireUser(req,res,state); if(!user) return;
-    const suffix=url.pathname.slice('/api/storage'.length).replace(/^\//,'');
-    if (!suffix && req.method==='GET') { const prefix=url.searchParams.get('prefix')||''; return respond(res,200,{keys:Object.keys(state.storage).filter(k=>k.startsWith(prefix))}); }
-    const key=decodeURIComponent(suffix); if(!key || key.includes('..')) return respond(res,400,{error:'Invalid key'});
-    if(req.method==='GET') {
-      if(!Object.hasOwn(state.storage,key)) return respond(res,404,{error:'Not found'});
-      if(key==='pid-fms-data-v2'){
-        try{ return respond(res,200,{value:JSON.stringify(filterAppDataForUser(user,JSON.parse(state.storage[key])))}); }
-        catch(error){ return respond(res,500,{error:'Stored application data is invalid.'}); }
-      }
-      return respond(res,200,{value:state.storage[key]});
-    }
-    if(req.method==='PUT') {
-      const {value}=await readJson(req); if(typeof value!=='string') return respond(res,400,{error:'value must be a string'});
-      let storedValue=value;
-      if(key==='pid-fms-data-v2'){
-        try{
-          const before=JSON.parse(state.storage[key]||'{}'); const after=JSON.parse(value);
-          if(before.adminSettings?.maintenanceMode&&!['admin','superadmin'].includes(user.role)) return respond(res,423,{error:'The application is in maintenance mode. Please try again later.'});
-          if(!['admin','superadmin'].includes(user.role) && JSON.stringify(before.coordinationApps||[])!==JSON.stringify(after.coordinationApps||[])) return respond(res,403,{error:'Administrator access required to manage coordination apps.'});
-          const documentBytes=(Array.isArray(after.documents)?after.documents:[]).reduce((sum,doc)=>sum+Math.max(0,Number(doc.sizeBytes)||Number(doc.sizeKB||0)*1024),0);
-          if(documentBytes>DOC_LIBRARY_CAPACITY_BYTES) return respond(res,413,{error:'The 2 TB document library limit would be exceeded.'});
-          const beforeSettings=before.adminSettings||{}; const afterSettings=after.adminSettings||{};
-          const systemKeys=['systemEnvironment','systemApiKeys','systemIntegrations','systemWebhooks','systemFileStorage','systemDatabase','systemMapsGps','systemQrService','systemSmsWhatsApp'];
-          if(user.role!=='superadmin' && systemKeys.some(setting=>JSON.stringify(beforeSettings[setting])!==JSON.stringify(afterSettings[setting]))) return respond(res,403,{error:'Super Administrator access required for system configuration.'});
-          storedValue=preserveHiddenAppData(user,state.storage[key],value);
-          const permissionError=appDataPermissionError(user,state.storage[key],storedValue);
-          if(permissionError) return respond(res,403,{error:permissionError});
-        }catch(error){ return respond(res,400,{error:'Invalid application settings data.'}); }
-      }
-      if(key==='pid-fms-data-v2') auditAppDataChanges(state,user,state.storage[key],storedValue,req);
-      state.storage[key]=storedValue; save(state); return respond(res,200,{ok:true});
-    }
-    if(req.method==='DELETE') {
-      if(user.role!=='admin'&&user.role!=='superadmin') return respond(res,403,{error:'Administrator access required.'});
-      delete state.storage[key]; save(state); return respond(res,200,{ok:true});
-    }
-  }
-  if (url.pathname.startsWith('/api/')) return respond(res,404,{error:'Not found'});
-  return serveFile(req,res);
-}
-
-if(process.argv[2]==='reset-password') {
-  const email=String(process.argv[3]||'').trim().toLowerCase();
-  if(!email) fail('Usage: node server.js reset-password email');
-  const state=load(); const user=state.users.find(account=>account.email===email);
-  if(!user) fail('No login account exists for that email.');
-  const temporaryPassword=generatedPassword(); const hash=passwordHash(temporaryPassword);
-  user.salt=hash.salt; user.passwordHash=hash.hash; delete user.hash;
-  user.mustChangePassword=true; user.sessionVersion=(user.sessionVersion||0)+1;
-  if(!Array.isArray(state.auditLog)) state.auditLog=[];
-  state.auditLog.push({at:new Date().toISOString(),actor:'Local server operator',action:'user.password_recovery',target:email,where:'CLI'});
-  save(state);
-  console.log(JSON.stringify({email,temporaryPassword})); process.exit(0);
-}
-if(process.argv[2]==='promote-superadmin') {
-  const email=String(process.argv[3]||'').trim().toLowerCase();
-  if(!email) fail('Usage: node server.js promote-superadmin email');
-  const state=load(); const user=state.users.find(account=>account.email===email);
-  if(!user) fail('No login account exists for that email.');
-  user.role='superadmin'; user.suspended=false; user.sessionVersion=(user.sessionVersion||0)+1; save(state);
-  console.log('Super Administrator role assigned. Sign in again to apply it.'); process.exit(0);
-}
-if(process.argv[2]==='create-user') {
-  const [, , , email, password, role='technician', ...nameParts]=process.argv;
-  if(!email || !password || !ROLES.has(role)) fail('Usage: node server.js create-user email password role [name]');
-  const state=load(); if(state.users.some(u=>u.email===email.toLowerCase())) fail('That email already exists.');
-  const hash=passwordHash(password); state.users.push({id:crypto.randomUUID(),email:email.toLowerCase(),name:nameParts.join(' ')||email,role,...hash}); save(state); console.log('User created.'); process.exit(0);
-}
-const server = http.createServer((req,res)=>handle(req,res).catch(err=>{ console.error(err); respond(res,500,{error:'Server error'}); }));
-server.on('error', err => { console.error(`Could not start server on port ${PORT}: ${err.message}`); process.exitCode = 1; });
-server.listen(PORT, '0.0.0.0', ()=>console.log(`PID Facilities is running at http://0.0.0.0:${PORT}`));
-,'m'));return m&&m[1].trim()?m[1].trim():fallback;};
-  const live='LIVE APPLICATION RECORDS (captured ', changesMark='\n\nCHANGES SINCE THE PREVIOUS GENERATED REPORT:\n';
-  const at=source.indexOf(live), changeAt=at<0?-1:source.indexOf(changesMark,at);
-  let data={},changes={},captured=false;
-  if(at>=0){try{data=JSON.parse(source.slice(source.indexOf('\n',at)+1,changeAt<0?source.length:changeAt).trim());captured=true;}catch{}}
-  if(changeAt>=0){try{changes=JSON.parse(source.slice(changeAt+changesMark.length).trim());}catch{}}
-  let notes='';const noteMark='Additional report notes and evidence:\n',noteAt=source.indexOf(noteMark);
-  if(noteAt>=0)notes=source.slice(noteAt+noteMark.length,at<0?source.length:at).trim();
-  if(notes==='No additional notes were supplied.')notes='';
-  const rows=k=>Array.isArray(data[k])?data[k]:[];
-  const status=r=>String(r.status||r.state||'').toLowerCase().replace(/[ _-]+/g,' ').trim();
-  const done=r=>/complete|closed|resolved|done|cancelled|canceled/.test(status(r));
-  const wo=rows('workOrders'),pending=wo.filter(r=>/pending approval/.test(status(r)));
-  const overdue=(list,fields)=>list.filter(r=>{if(done(r))return false;const d=Date.parse(fields.map(k=>r[k]).find(Boolean)||'');return Number.isFinite(d)&&d<Date.now();});
-  const lateWO=overdue(wo.filter(r=>!done(r)&&!/pending approval/.test(status(r))),['dueDate','targetDate','slaDueAt']);
-  const pm=rows('pmTasks'),latePM=overdue(pm,['dueDate','nextDueDate']);
-  const openInc=rows('incidents').filter(r=>!done(r));
-  const contracts=rows('contracts').length?rows('contracts'):rows('contractors');
-  const flaggedContracts=contracts.filter(r=>/renew|review|missing|non.?compliant|expired|hold/.test(status(r)+' '+String(r.complianceStatus||'')));
-  const metrics=[['Facilities / centres',rows('centres').length],['Assets',rows('assets').length],['Work orders',wo.length],['Awaiting HQ approval',pending.length],['Active work orders',wo.filter(r=>!done(r)&&!/pending approval/.test(status(r))).length],['Preventive maintenance tasks',pm.length],['Contractor / contract records',contracts.length],['Projects',rows('projects').length],['Open incidents',openInc.length],['Inspections',rows('inspections').length],['Asset transfers / disposals',rows('assetTransfers').length],['Documents',rows('documents').length]];
-  const title=meta('Report title','PID Facilities Management Report'),period=meta('Reporting period'),type=meta('Report type','Programme report'),org=meta('Organisation','OAU-PID / UNISA');
-  const stamp=at>=0?(source.slice(at).match(/^LIVE APPLICATION RECORDS \(captured ([^)]*)\)/)||[])[1]:null;
-  const basis=captured?'This report uses connected application records captured on '+(stamp||'the generation date')+'. Counts do not independently verify site outcomes.':'No structured app snapshot was received; findings are limited to supplied notes.';
+  if (changeAt >= 0) { try { changes = JSON.parse(source.slice(changeAt + changeMark.length).trim()); } catch {} }
+  const noteMark = 'Additional report notes and evidence:\n';
+  const noteAt = source.indexOf(noteMark);
+  if (noteAt >= 0) notes = source.slice(noteAt + noteMark.length, liveAt < 0 ? source.length : liveAt).trim();
+  if (notes === 'No additional notes were supplied.') notes = '';
+  const rows = name => Array.isArray(data[name]) ? data[name] : [];
+  const normalizedStatus = row => String(row.status || row.state || '').toLowerCase().replace(/[ _-]+/g, ' ').trim();
+  const isDone = row => /complete|closed|resolved|done|cancelled|canceled/.test(normalizedStatus(row));
+  const workOrders = rows('workOrders');
+  const pending = workOrders.filter(row => /pending approval/.test(normalizedStatus(row)));
+  const active = workOrders.filter(row => !isDone(row) && !/pending approval/.test(normalizedStatus(row)));
+  const overdue = (list, keys) => list.filter(row => {
+    if (isDone(row)) return false;
+    const date = Date.parse(keys.map(key => row[key]).find(Boolean) || '');
+    return Number.isFinite(date) && date < Date.now();
+  });
+  const overdueWO = overdue(active, ['dueDate','targetDate','slaDueAt']);
+  const pmTasks = rows('pmTasks'), overduePM = overdue(pmTasks, ['dueDate','nextDueDate']);
+  const openIncidents = rows('incidents').filter(row => !isDone(row));
+  const contracts = rows('contracts').length ? rows('contracts') : rows('contractors');
+  const reviewContracts = contracts.filter(row => /renew|review|missing|non.?compliant|expired|hold/.test(normalizedStatus(row) + ' ' + String(row.complianceStatus || '')));
+  const metrics = [
+    ['Facilities / centres',rows('centres').length],['Assets',rows('assets').length],
+    ['Work orders',workOrders.length],['Awaiting HQ approval',pending.length],
+    ['Active work orders',active.length],['Preventive maintenance tasks',pmTasks.length],
+    ['Contractor / contract records',contracts.length],['Projects',rows('projects').length],
+    ['Open incidents',openIncidents.length],['Inspections',rows('inspections').length],
+    ['Asset transfers / disposals',rows('assetTransfers').length],['Documents',rows('documents').length]
+  ];
+  const title=meta('Report title','PID Facilities Management Report');
+  const type=meta('Report type','Programme report');
+  const org=meta('Organisation','OAU-PID / UNISA');
+  const period=meta('Reporting period','Not supplied');
+  const stampLine=liveAt<0?'':source.slice(liveAt).split('\n')[0];
+  const stamp=stampLine.replace(liveMark,'').replace(/\):?$/,'');
+  const basis=captured?'Connected application records captured '+(stamp||'at generation time')+'. Record counts do not independently verify site outcomes.':'No structured app snapshot was supplied; findings are limited to reporting notes.';
   const issues=[];
   if(pending.length)issues.push(pending.length+' work order(s) await HQ/admin approval.');
-  if(lateWO.length)issues.push(lateWO.length+' active work order(s) have passed recorded due dates.');
-  if(latePM.length)issues.push(latePM.length+' preventive maintenance task(s) have passed recorded due dates.');
-  if(openInc.length)issues.push(openInc.length+' incident(s) are not marked closed, resolved or complete.');
-  if(flaggedContracts.length)issues.push(flaggedContracts.length+' contractor/contract record(s) have status suggesting review, renewal, expiry, hold or compliance attention.');
-  if(!captured)issues.push('Record-level issue checks could not run because app snapshot was unavailable.');
+  if(overdueWO.length)issues.push(overdueWO.length+' active work order(s) have passed recorded due dates.');
+  if(overduePM.length)issues.push(overduePM.length+' preventive maintenance task(s) have passed recorded due dates.');
+  if(openIncidents.length)issues.push(openIncidents.length+' incident(s) are not marked closed, resolved or complete.');
+  if(reviewContracts.length)issues.push(reviewContracts.length+' contractor/contract record(s) have a status suggesting review, renewal, expiry, hold or compliance attention.');
+  if(!captured)issues.push('Record checks could not run because the live app snapshot was unavailable.');
   if(!notes)issues.push('No additional narrative notes were supplied for this period.');
   if(!issues.length)issues.push('No items matched the built-in approval, overdue-date, open-incident or contract-review checks. This does not establish that no issues exist.');
+  let changeText='No structured change summary was available.';
+  const domains=changes&&changes.domains&&typeof changes.domains==='object'?changes.domains:changes;
+  if(domains&&typeof domains==='object'){
+    const parts=[];
+    for(const [name,row] of Object.entries(domains)){
+      if(!row||typeof row!=='object')continue;
+      const added=Number(row.added||row.created||0),updated=Number(row.updated||row.changed||0),removed=Number(row.removed||row.deleted||0);
+      if(added||updated||removed)parts.push(name+': '+added+' added, '+updated+' updated, '+removed+' removed');
+    }
+    if(parts.length)changeText=parts.join('; ')+'.';
+  }
   const recommendations=[
-    'HQ/admin: review pending work orders and record dated, attributable approval or return decisions before assignment proceeds.',
+    'HQ/admin: review pending work orders and record dated, attributable approve or return decisions before assignment proceeds.',
     'Maintenance coordinator: prioritize overdue and urgent work, confirm an owner and target date, then verify closure evidence.',
     'Preventive maintenance lead: review overdue PM tasks and record completion or an approved revised schedule.',
     'Facilities lead: reconcile asset and centre records with local registers and resolve missing identifiers or locations.',
@@ -725,17 +502,14 @@ server.listen(PORT, '0.0.0.0', ()=>console.log(`PID Facilities is running at htt
     'OHSA/inspection lead: triage open incidents and corrective actions, record controls and verify closure.',
     'Reporting owner: add site validation, period outcomes, costs and measurable progress evidence for the next review.'
   ];
-  let changeText='No structured change summary was available.';
-  const domains=changes&&changes.domains&&typeof changes.domains==='object'?changes.domains:changes;
-  if(domains&&typeof domains==='object'){const out=[];for(const [k,v] of Object.entries(domains)){if(!v||typeof v!=='object')continue;const a=Number(v.added||v.created||0),u=Number(v.updated||v.changed||0),d=Number(v.removed||v.deleted||0);if(a||u||d)out.push(k+': '+a+' added, '+u+' updated, '+d+' removed');}if(out.length)changeText=out.join('; ')+'.';}
   return {
-    'Executive Summary':title+' — '+period+'\n\n'+org+' has '+rows('centres').length+' centre/facility records, '+rows('assets').length+' assets, '+wo.length+' work orders and '+pm.length+' preventive maintenance tasks recorded. '+pending.length+' work order(s) await approval; '+lateWO.length+' active work order(s) and '+latePM.length+' PM task(s) have overdue dates; '+openInc.length+' incident(s) remain open. '+basis+(notes?'\n\n'+notes.slice(0,1400):'')+'\n\nManagement attention should focus on the queues and evidence gaps identified in this report.',
+    'Executive Summary':title+' — '+period+'\n\n'+org+' has '+rows('centres').length+' centre/facility records, '+rows('assets').length+' assets, '+workOrders.length+' work orders and '+pmTasks.length+' preventive maintenance tasks in the connected application. '+pending.length+' work order(s) await approval; '+overdueWO.length+' active work order(s) and '+overduePM.length+' PM task(s) have overdue dates; '+openIncidents.length+' incident(s) remain open. '+basis+(notes?'\n\n'+notes.slice(0,1400):'')+'\n\nManagement attention should focus on the queues and evidence gaps identified here.',
     'Introduction':intro,
-    'Current Report':'Report: '+title+'\nReport type: '+type+'\nOrganisation: '+org+'\nReporting period: '+period+'\n\n'+basis+'\n\nApplication register summary\n'+metrics.map(([k,v])=>'- '+k+': '+v).join('\n')+(notes?'\n\nSubmitted notes and evidence\n'+notes:'')+'\n\nCounts are record totals only; they do not establish condition, service quality, costs, completion or impact. The connected records and detected changes accompany the generated document.',
-    ...(previousReport?{'Previous Report Comparison':'Most recent earlier report generated: '+previousReport.generatedAt+'.\n\nThe earlier narrative is available for comparison, but a complete historic application snapshot is not available here. Therefore no verified record-by-record delta or completed recommendation is claimed. Changes supplied by the connected app: '+changeText+' Validate claimed changes against source records before treating them as measured outcomes.'}:{}),
-    'Issues':issues.map((x,i)=>(i+1)+'. '+x).join('\n')+'\n\nThese are checks against recorded statuses and dates, not proof of root cause or risk severity.',
-    'Recommendations':recommendations.map((x,i)=>(i+1)+'. '+x).join('\n'),
-    'Conclusion':'The connected records provide a current operational register across facilities, assets, work orders, maintenance and related areas. They identify queues for review, including '+pending.length+' approval(s), '+lateWO.length+' work order(s) and '+latePM.length+' PM task(s) with overdue dates. Responsible teams should validate the counts, add site evidence and period-based measures, assign the proposed actions, and record decisions and outcomes for comparison in the next PID Report.'
+    'Current Report':'Report: '+title+'\nReport type: '+type+'\nOrganisation: '+org+'\nReporting period: '+period+'\n\n'+basis+'\n\nApplication register summary\n'+metrics.map(pair=>'- '+pair[0]+': '+pair[1]).join('\n')+(notes?'\n\nSubmitted notes and evidence\n'+notes:'')+'\n\nCounts are record totals only; they do not establish service quality, condition, expenditure, completion or impact. Connected data and changes accompany the generated document.',
+    ...(previousReport?{'Previous Report Comparison':'Most recent earlier report generated: '+previousReport.generatedAt+'.\n\nA full historical app snapshot is not available here, so this generator cannot calculate verified record-by-record differences or claim that prior recommendations were completed. Connected app changes since its previous report baseline: '+changeText+' Validate changes against source records before treating them as measured outcomes.'}:{}),
+    'Issues':issues.map((item,index)=>(index+1)+'. '+item).join('\n')+'\n\nThese checks use recorded statuses and dates and do not prove root cause or risk severity.',
+    'Recommendations':recommendations.map((item,index)=>(index+1)+'. '+item).join('\n'),
+    'Conclusion':'The connected records provide a current operational register across facilities, assets, work orders, maintenance and related areas. They identify queues for review, including '+pending.length+' approvals, '+overdueWO.length+' work orders and '+overduePM.length+' PM tasks with overdue dates. Responsible teams should validate the counts, add site evidence and period measures, assign the proposed actions, and record decisions and outcomes for comparison in the next PID Report.'
   };
 }
 
@@ -853,7 +627,7 @@ async function handle(req, res) {
     const previousText=previousReport?JSON.stringify({generatedAt:previousReport.generatedAt,report:Object.fromEntries(previousSections.filter(section=>typeof previousReport.report[section]==='string').map(section=>[section,previousReport.report[section]]))}).slice(0,16000):'';
     const endpoint=String(process.env.AZURE_OPENAI_ENDPOINT||'').trim();
     const deployment=String(process.env.AZURE_OPENAI_DEPLOYMENT||'gpt-4.1-mini').trim();
-    if(!endpoint||!deployment)return respond(res,503,{error:'PID Report generation is not configured on this host.'},apiHeaders);
+    if(!endpoint||!deployment){const report=buildBuiltInPidReport(source,previousReport,intro);return respond(res,200,{report,model:'Built-in evidence-based report generator',comparedTo:previousReport?previousReport.generatedAt:null},apiHeaders);}
     let requestUrl;
     try{
       requestUrl=new URL(endpoint);
