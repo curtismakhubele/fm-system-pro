@@ -245,6 +245,23 @@ function appDataPermissionError(user, beforeValue, nextValue) {
   try{
     const before=JSON.parse(beforeValue||'{}'); const next=JSON.parse(nextValue||'{}');
     const settings=before.adminSettings||{};
+    if(user.role==='intern'){
+      const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
+      const centreId=profile&&profile.centreId;
+      const oldAssets=Array.isArray(before.assets)?before.assets:[],newAssets=Array.isArray(next.assets)?next.assets:[];
+      if(JSON.stringify(oldAssets)!==JSON.stringify(newAssets)){
+        if(!centreId) return 'Assign this intern to a centre before changing assets.';
+        const oldMap=new Map(oldAssets.map((asset,index)=>[String(asset.id||index),asset]));
+        const newMap=new Map(newAssets.map((asset,index)=>[String(asset.id||index),asset]));
+        for(const [id,asset] of newMap){
+          const previous=oldMap.get(id);
+          if(!previous){if(asset.centreId!==centreId)return 'Interns can add assets only to their assigned centre.';continue;}
+          if(JSON.stringify(previous)!==JSON.stringify(asset)&&
+             (previous.centreId!==centreId||asset.centreId!==centreId)) return 'Interns can edit assets only within their assigned centre.';
+        }
+        for(const id of oldMap.keys()) if(!newMap.has(id)) return 'Interns cannot remove assets.';
+      }
+    }
     if(!settings.permissionMatrixEnforced) return null;
     const protectedKeys=['users','adminSettings','orgName','msEmail','waNumber','requireMsAuthForAdmin','sharepointFolder','sharepointSiteId'];
     if(protectedKeys.some(key=>JSON.stringify(before[key])!==JSON.stringify(next[key]))) return 'Administrator permission required for user and system settings.';

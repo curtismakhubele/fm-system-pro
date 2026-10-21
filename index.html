@@ -1000,12 +1000,6 @@ function normalizeData(){
   Object.keys(defaultSettings.permissionMatrix).forEach(role=>{
     DATA.adminSettings.permissionMatrix[role]={...defaultSettings.permissionMatrix[role],...(DATA.adminSettings.permissionMatrix[role]||{})};
   });
-  if(DATA.adminSettings.internAssetScopeAccessVersion!==1){
-    DATA.adminSettings.permissionMatrix.intern.Assets.create=true;
-    DATA.adminSettings.permissionMatrix.intern.Assets.edit=true;
-    DATA.adminSettings.internAssetScopeAccessVersion=1;
-    persist();
-  }
   ADMIN_SETTING_GROUPS.forEach(group=>group.fields.forEach(([key,label,type,value])=>{
     if(type!=='file' && DATA.adminSettings[key]===undefined) DATA.adminSettings[key]=type==='checkbox'?value==='true':value;
   }));
@@ -1744,8 +1738,9 @@ function assetsForCurrentRole(){
 function assetFormMarkup(prefix,a={},lockedCentreId=''){
  const disciplines=configuredAssetDisciplines(),discipline=a.discipline||(disciplines.includes(a.category)?a.category:(disciplines[0]||'General items')),status=a.status||'operational',condition=a.condition||'Good';
  const statuses=[['operational','Operational'],['maintenance','Under maintenance'],['down','Faulty'],['decommissioned','Decommissioned']].filter(([value])=>!currentInternProfile()||value!=='decommissioned'),conditions=adminSettingList('assetConditions',['New','Good','Fair','Poor','Unserviceable']);if(condition&&!conditions.includes(condition))conditions.unshift(condition);
+ const centreMarkup=lockedCentreId?'<option value="'+escapeAttr(lockedCentreId)+'" selected>'+escapeHtml((centreById(lockedCentreId)||{}).name||'Assigned centre')+'</option>':centreOptions(a.centreId);
  return '<div class="row2"><div class="field"><label>Asset description *</label><input id="'+prefix+'-name" value="'+escapeAttr(a.name||'')+'" required></div><div class="field"><label>Discipline *</label><select id="'+prefix+'-discipline">'+disciplines.map(x=>'<option '+(x===discipline?'selected':'')+'>'+escapeHtml(x)+'</option>').join('')+'</select></div></div>'+
- '<div class="row2"><div class="field"><label>Centre / campus *</label><select id="'+prefix+'-centre" '+(lockedCentreId?'disabled':'')+'>'+centreOptions(lockedCentreId||a.centreId)+'</select></div><div class="field"><label>Quantity *</label><input id="'+prefix+'-quantity" type="number" min="1" step="1" value="'+Math.max(1,Number(a.quantity)||1)+'" required></div></div>'+
+ '<div class="row2"><div class="field"><label>Centre / campus *</label><select id="'+prefix+'-centre" '+(lockedCentreId?'disabled':'')+'>'+centreMarkup+'</select></div><div class="field"><label>Quantity *</label><input id="'+prefix+'-quantity" type="number" min="1" step="1" value="'+Math.max(1,Number(a.quantity)||1)+'" required></div></div>'+
  '<div class="row2"><div class="field"><label>Building / block</label><input id="'+prefix+'-building" value="'+escapeAttr(a.building||'')+'"></div><div class="field"><label>Floor / room / area</label><input id="'+prefix+'-location" value="'+escapeAttr(a.location||'')+'"></div></div>'+
  '<div class="row2"><div class="field"><label>Condition</label><select id="'+prefix+'-condition">'+conditions.map(x=>'<option '+(x===condition?'selected':'')+'>'+escapeHtml(x)+'</option>').join('')+'</select></div><div class="field"><label>Operational status</label><select id="'+prefix+'-status">'+statuses.map(([v,l])=>'<option value="'+v+'" '+(v===status?'selected':'')+'>'+l+'</option>').join('')+'</select></div></div>'+
  '<div class="row2"><div class="field"><label>Asset tag / serial number</label><input id="'+prefix+'-serial" value="'+escapeAttr(a.serialNumber||a.tag||'')+'" placeholder="Optional for bulk items"></div><div class="field"><label>Date recorded</label><input id="'+prefix+'-recorded" type="date" value="'+escapeAttr(a.recordedDate||a.purchaseDate||'')+'"></div></div>'+
