@@ -228,6 +228,9 @@ function auditAppDataChanges(state, actor, beforeValue, nextValue, req) {
 const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
 function filterAppDataForUser(user, data) {
   if(user.role==='admin' || user.role==='superadmin') return data;
+  const internProfile=user.role==='intern'?(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern'):null;
+  const internWorkOrders=user.role==='intern'?(data.workOrders||[]).filter(row=>row.reportedByUserId===internProfile?.id):null;
+  const internAssetReports=user.role==='intern'?(data.assetReports||[]).filter(row=>row.internId===internProfile?.id):null;
   if(data.adminSettings?.permissionMatrixEnforced){
     const rules=data.adminSettings.permissionMatrix&&data.adminSettings.permissionMatrix[user.role]||{};
     for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) data[field]=Array.isArray(data[field])?[]:{};
@@ -237,12 +240,16 @@ function filterAppDataForUser(user, data) {
     const centreId=profile&&profile.centreId;
     data.centres=(data.centres||[]).filter(centre=>centre.id===centreId);
     data.assets=(data.assets||[]).filter(asset=>!!centreId&&asset.centreId===centreId);
+    data.workOrders=internWorkOrders||[];
+    data.assetReports=internAssetReports||[];
   }
   return data;
 }
 function preserveHiddenAppData(user, beforeValue, nextValue) {
   if(user.role==='admin' || user.role==='superadmin') return nextValue;
   const before=JSON.parse(beforeValue||'{}'); const next=JSON.parse(nextValue||'{}');
+  const internSubmittedWorkOrders=user.role==='intern'&&Array.isArray(next.workOrders)?next.workOrders:[];
+  const internSubmittedReports=user.role==='intern'&&Array.isArray(next.assetReports)?next.assetReports:[];
   const rules=before.adminSettings?.permissionMatrix&&before.adminSettings.permissionMatrix[user.role]||{};
   if(before.adminSettings?.permissionMatrixEnforced){
     for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
@@ -256,6 +263,16 @@ function preserveHiddenAppData(user, beforeValue, nextValue) {
     const submittedIds=new Set(submitted.map(asset=>String(asset.id)));
     const protectedRows=(before.assets||[]).filter(asset=>asset.centreId!==centreId||!submittedIds.has(String(asset.id)));
     next.assets=[...protectedRows,...submitted.filter(asset=>asset.centreId===centreId)];
+    const oldWorkOrders=Array.isArray(before.workOrders)?before.workOrders:[];
+    const submittedWorkOrders=internSubmittedWorkOrders;
+    const oldWorkOrderIds=new Set(oldWorkOrders.map(row=>String(row.id)));
+    const newOwnWorkOrders=submittedWorkOrders.filter(row=>!oldWorkOrderIds.has(String(row.id))&&row.reportedByUserId===profile?.id&&row.reportedByEmail&&String(row.reportedByEmail).toLowerCase()===String(user.email||'').toLowerCase());
+    next.workOrders=[...oldWorkOrders,...newOwnWorkOrders];
+    const oldAssetReports=Array.isArray(before.assetReports)?before.assetReports:[];
+    const submittedReports=internSubmittedReports;
+    const oldReportIds=new Set(oldAssetReports.map(row=>String(row.id)));
+    const newOwnReports=submittedReports.filter(row=>!oldReportIds.has(String(row.id))&&row.internId===profile?.id);
+    next.assetReports=[...oldAssetReports,...newOwnReports];
   }
   return JSON.stringify(next);
 }
@@ -288,8 +305,35 @@ function appDataPermissionError(user, beforeValue, nextValue) {
         for(const id of oldMap.keys()) if(!newMap.has(id)) return 'Interns cannot remove assets.';
       }
     }
+    if(user.role==='intern'){
+      const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
+      if(!profile?.centreId) return 'Assign this intern to a centre before reporting an issue.';
+      const oldWorkOrders=Array.isArray(before.workOrders)?before.workOrders:[];
+      const newWorkOrders=Array.isArray(next.workOrders)?next.workOrders:[];
+      const oldWorkOrderMap=new Map(oldWorkOrders.map((row,index)=>[String(row.id||index),row]));
+      const newWorkOrderMap=new Map(newWorkOrders.map((row,index)=>[String(row.id||index),row]));
+      for(const [id,row] of newWorkOrderMap){
+        const previous=oldWorkOrderMap.get(id);
+        if(previous){if(JSON.stringify(previous)!==JSON.stringify(row)) return 'Interns can only submit new work order reports; HQ/admin must edit and approve them.';continue;}
+        if(row.reportedByUserId!==profile.id||String(row.reportedByEmail||'').toLowerCase()!==String(user.email||'').toLowerCase()||row.centreId!==profile.centreId||row.status!=='pending_approval'||row.assignedUserId||!['','Unassigned'].includes(row.assignedTo||'')) return 'Intern work orders must be unassigned and submitted for HQ/admin approval at the intern’s assigned centre.';
+      }
+      for(const id of oldWorkOrderMap.keys()) if(!newWorkOrderMap.has(id)) return 'Interns cannot remove work orders.';
+      const oldReports=Array.isArray(before.assetReports)?before.assetReports:[];
+      const newReports=Array.isArray(next.assetReports)?next.assetReports:[];
+      const oldReportMap=new Map(oldReports.map((row,index)=>[String(row.id||index),row]));
+      const newReportMap=new Map(newReports.map((row,index)=>[String(row.id||index),row]));
+      for(const [id,row] of newReportMap){
+        const previous=oldReportMap.get(id);
+        if(previous){if(JSON.stringify(previous)!==JSON.stringify(row)) return 'Interns cannot edit submitted issue reports.';continue;}
+        if(row.internId!==profile.id||row.centreId!==profile.centreId||row.status!=='pending_approval') return 'Issue reports must belong to this intern and be submitted for HQ/admin approval.';
+        const linked=newWorkOrderMap.get(String(row.linkedWoId||''));
+        if(!linked||linked.reportedByUserId!==profile.id) return 'Each issue report must be linked to its own work order.';
+      }
+      for(const id of oldReportMap.keys()) if(!newReportMap.has(id)) return 'Interns cannot remove issue reports.';
+    }
     if(!settings.permissionMatrixEnforced) return null;
     for(const [key,resource] of Object.entries(APP_DATA_RESOURCES)){
+      if(user.role==='intern'&&['workOrders','assetReports'].includes(key)) continue;
       const oldRows=before[key]||[]; const newRows=next[key]||[];
       if(JSON.stringify(oldRows)===JSON.stringify(newRows)) continue;
       const roleRules=settings.permissionMatrix&&settings.permissionMatrix[user.role];
