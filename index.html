@@ -454,6 +454,7 @@
         <div class="label" onclick="toggleNavGroup(this)">Coordination<span class="chev">â–¾</span></div>
 
         <div id="coordination-app-links"></div>
+        <div class="navitem" data-view="pid-report-studio" data-roles="admin,hq,centre"><span class="navicon">✦</span>PID Report Studio</div>
         <div class="navitem" data-view="documents" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="8" x2="11" y2="8"/></svg></span>Documents<span class="badge" id="nav-doc-count">0</span></div>
       </div>
       <div class="navgroup" data-roles="admin,hq,centre,technician">
@@ -704,17 +705,20 @@
 
 
     <!-- DOCUMENTS -->
-    <section class="view" id="view-documents">
+    <section class="view" id="view-pid-report-studio" data-roles="admin,hq,centre">
       <div class="topbar">
-        <div><h1>Documents</h1><div class="meta">Import and export real files - manuals, reports, photos, certificates</div></div>
-        <button class="btn btn-accent" onclick="openDocumentModal()">â¬† Import document</button>
+        <div><h1>PID Report Studio</h1><div class="meta">Generate a complete, evidence-led PID report from this app’s live facilities records and save it to PID Cloud Documents.</div></div>
       </div>
-      <div class="banner" id="doc-storage-banner">
-        <span>â“˜</span>
-        <div id="doc-storage-banner-text">Checking storage modeâ€¦</div>
+      <div class="panel" style="margin-bottom:16px;overflow:hidden;">
+        <div style="padding:22px 24px;background:linear-gradient(120deg,#10234b,#2457d6);color:#fff;">
+          <div style="font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:.8;">OAU-PID · UNISA FACILITIES PROGRAMME</div>
+          <h2 style="font-size:22px;margin:8px 0 6px;">A complete picture of programme activity</h2>
+          <div style="font-size:13px;line-height:1.6;max-width:850px;opacity:.9;">The report combines your current notes with live app records, identifies changes since the previous generated report, and includes a detailed application data register in the saved Word document.</div>
+        </div>
+        <div id="pid-report-data-summary" class="row2" style="padding:14px 18px;margin:0;gap:10px;"></div>
       </div>
-      <div class="panel" data-roles="admin,hq,centre" style="margin-bottom:16px;">
-        <div class="panel-head"><div><h2>PID AI Report Studio</h2><div class="sub">Generate a full facilities programme report and save its Word document to PID Cloud Documents.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate PID Report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download Word document</button></div></div>
+            <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><div><h2>Build your PID Report</h2><div class="sub">Generate a full facilities programme report and save its Word document to PID Cloud Documents.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate complete PID Report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download Word document</button></div></div>
         <div class="row2">
           <div class="field"><label for="programme-report-title">Report title</label><input id="programme-report-title" value="PID Facilities Management Report" placeholder="Enter a report title"></div>
           <div class="field"><label for="programme-report-type">Report type</label><select id="programme-report-type"><option>Facilities programme review</option><option>Progress report</option><option>Monthly performance report</option><option>Incident report</option><option>Technical report</option></select></div>
@@ -724,10 +728,22 @@
           <div class="field"><label for="programme-report-period">Reporting period</label><input id="programme-report-period" placeholder="e.g. October 2026"></div>
         </div>
         <div class="field"><label for="programme-report-tone">Writing tone</label><select id="programme-report-tone"><option>Professional</option><option>Executive</option><option>Technical</option><option>Academic</option><option>Concise</option></select></div>
-        <div class="field"><label for="programme-report-source">Current report details and evidence</label><textarea id="programme-report-source" rows="6" placeholder="Add the latest review findings, completed work, issues, dates, figures and evidence. The introduction is inserted automatically."></textarea><small style="color:var(--ink-soft);">The report compares with the last generated PID Report when one exists. Include evidence; the report will not claim progress or outcomes that were not provided.</small></div>
+        <div class="field"><label for="programme-report-source">Additional report notes and evidence</label><textarea id="programme-report-source" rows="6" placeholder="Optional: add context, decisions, review findings or evidence not already recorded in the app. The required programme introduction is inserted automatically."></textarea><small style="color:var(--ink-soft);">The report compares with the last generated PID Report when one exists. Include evidence; the report will not claim progress or outcomes that were not provided.</small></div>
         <p id="programme-report-status" role="status" aria-live="polite" style="color:var(--ink-soft);font-size:12px;"></p>
         <div id="programme-report-output"></div>
       </div>
+    </section>
+
+    <section class="view" id="view-documents">
+      <div class="topbar">
+        <div><h1>Documents</h1><div class="meta">Import and export real files - manuals, reports, photos, certificates</div></div>
+        <button class="btn btn-accent" onclick="openDocumentModal()">â¬† Import document</button>
+      </div>
+      <div class="banner" id="doc-storage-banner">
+        <span>â“˜</span>
+        <div id="doc-storage-banner-text">Checking storage modeâ€¦</div>
+      </div>
+
       <div class="panel">
         <div class="panel-head"><div><h2>Document library</h2><div class="sub">Everything imported into this app</div></div></div>
         <table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Storage</th><th>Linked to</th><th>Added</th><th></th></tr></thead>
@@ -989,6 +1005,7 @@ async function loadData(){
 function normalizeData(){
   if(!DATA.centres) DATA.centres = [];
   if(!Array.isArray(DATA.programmeReports)) DATA.programmeReports = [];
+  if(!DATA.pidReportLatestSnapshot||typeof DATA.pidReportLatestSnapshot!=='object') DATA.pidReportLatestSnapshot=null;
   if(!DATA.users) DATA.users = [];
   if(!DATA.waNumber) DATA.waNumber = '0634116900';
   if(!DATA.assetReports) DATA.assetReports = [];
@@ -1043,7 +1060,7 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], doodleLinks:[], documents:[],
+    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], pidReportLatestSnapshot:null, doodleLinks:[], documents:[],
     internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
@@ -2709,7 +2726,7 @@ function applyPermissionVisibility(){
   const permissions=DATA&&DATA.adminSettings&&DATA.adminSettings.permissionMatrix&&DATA.adminSettings.permissionMatrix[state.role];
   if(!permissions) return;
   const enforced=!!DATA.adminSettings.permissionMatrixEnforced;
-  const viewResources={centres:'Centres',assets:'Assets',workorders:'Work Orders',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
+  const viewResources={centres:'Centres',assets:'Assets',workorders:'Work Orders',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports','pid-report-studio':'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
   document.querySelectorAll('.navitem[data-view]').forEach(item=>{
     const resource=viewResources[item.dataset.view];
     if(resource&&permissions[resource]) item.classList.toggle('permission-hidden',enforced&&!permissions[resource].view);
@@ -3109,6 +3126,58 @@ let programmeReportSections=[];
 let programmeReportResult=null;
 let programmeReportWordBlob=null;
 let programmeReportWordName='PID-Report.docx';
+const PID_REPORT_DATASETS=[
+  ['centres','Facilities / centres'],['users','Application users'],['assets','Asset register'],
+  ['assetTransfers','Asset transfers and disposals'],['workOrders','Work orders'],
+  ['pmTasks','Preventive maintenance'],['contractors','Contractors and contracts'],
+  ['slaRules','SLA rules'],['projects','Projects'],['incidents','Safety incidents'],
+  ['inspections','Safety inspections'],['assetReports','Asset issue reports'],
+  ['documents','Document library'],['coordinationApps','Coordination links'],['doodleLinks','Coordination records']
+];
+function pidReportSafeRecord(value){
+  if(Array.isArray(value))return value.map(pidReportSafeRecord);
+  if(!value||typeof value!=='object')return value;
+  const clean={};
+  Object.entries(value).forEach(([key,item])=>{
+    if(/password|secret|token|authorization|email|phone|mobile|whatsapp|dataurl|base64|binary|blob|photo|avatar|image|signature/i.test(key))return;
+    if(typeof item==='string'&&/^data:[^,]+;base64,/i.test(item))return;
+    clean[key]=pidReportSafeRecord(item);
+  });
+  return clean;
+}
+function buildPidReportSnapshot(){
+  return Object.fromEntries(PID_REPORT_DATASETS.map(([key])=>[key,(Array.isArray(DATA[key])?DATA[key]:[]).map(pidReportSafeRecord)]));
+}
+function buildPidReportChanges(previous,current){
+  if(!previous||typeof previous!=='object')return {baseline:'No earlier PID Report contains an app data snapshot; this report establishes the comparison baseline.',domains:[]};
+  const domains=[];
+  PID_REPORT_DATASETS.forEach(([key,label])=>{
+    const before=Array.isArray(previous[key])?previous[key]:[],after=Array.isArray(current[key])?current[key]:[];
+    const recordKey=(item,index)=>String(item&&(item.id||item.reference||item.assetTag||item.tag||item.name||item.title)||'record-'+(index+1));
+    const oldMap=new Map(before.map((item,index)=>[recordKey(item,index),item]));
+    const newMap=new Map(after.map((item,index)=>[recordKey(item,index),item]));
+    const changes=[];
+    newMap.forEach((item,id)=>{
+      if(!oldMap.has(id))changes.push({change:'Added',recordId:id,record:item});
+      else if(JSON.stringify(oldMap.get(id))!==JSON.stringify(item))changes.push({change:'Updated',recordId:id,before:oldMap.get(id),after:item});
+    });
+    oldMap.forEach((item,id)=>{if(!newMap.has(id))changes.push({change:'Removed',recordId:id,record:item});});
+    if(changes.length)domains.push({domain:label,changes});
+  });
+  return {domains};
+}
+function pidReportRegister(snapshot,changes,capturedAt){
+  return JSON.stringify({capturedAt,records:snapshot,changesSincePreviousReport:changes},null,2);
+}
+function renderPidReportDataSummary(){
+  const host=document.getElementById('pid-report-data-summary');
+  if(!host||!DATA)return;
+  const cards=PID_REPORT_DATASETS.slice(0,8).map(([key,label])=>{
+    const count=Array.isArray(DATA[key])?DATA[key].length:0;
+    return '<div style="padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel);"><div style="font-size:10px;color:var(--ink-soft);">'+escapeHtml(label)+'</div><strong style="display:block;font:600 18px var(--font-display);margin-top:3px;">'+count+'</strong></div>';
+  });
+  host.innerHTML=cards.join('');
+}
 async function generateProgrammeReport(){
   const button=document.getElementById('generate-programme-report'),status=document.getElementById('programme-report-status');
   const details=document.getElementById('programme-report-source').value.trim(),output=document.getElementById('programme-report-output');
@@ -3117,35 +3186,48 @@ async function generateProgrammeReport(){
   const organisation=document.getElementById('programme-report-org')?.value.trim()||'OAU-PID | UNISA';
   const period=document.getElementById('programme-report-period')?.value.trim()||'Not specified';
   const tone=document.getElementById('programme-report-tone')?.value||'Professional';
-  if(details.length<10){status.textContent='Add current report details before generating a PID Report.';return;}
-  const source='Report title: '+title+'\nReport type: '+reportType+'\nOrganisation: '+organisation+'\nReporting period: '+period+'\nWriting tone: '+tone+'\n\nCurrent report details and evidence:\n'+details;
   const earlier=(DATA.programmeReports||[]).filter(item=>item&&item.report&&item.generatedAt&&Date.parse(item.generatedAt)<Date.now()).sort((a,b)=>Date.parse(a.generatedAt)-Date.parse(b.generatedAt));
   const previousReport=earlier.length?earlier[earlier.length-1]:null;
+  const snapshot=buildPidReportSnapshot(),capturedAt=new Date().toISOString();
+  const changes=buildPidReportChanges(DATA.pidReportLatestSnapshot,snapshot);
+  const register=pidReportRegister(snapshot,changes,capturedAt);
+  const appEvidence='\n\nLIVE APPLICATION RECORDS (captured '+capturedAt+'):\n'+JSON.stringify(snapshot)+'\n\nCHANGES SINCE THE PREVIOUS GENERATED REPORT:\n'+JSON.stringify(changes);
+  const source='Report title: '+title+'\nReport type: '+reportType+'\nOrganisation: '+organisation+'\nReporting period: '+period+'\nWriting tone: '+tone+'\n\nAdditional report notes and evidence:\n'+(details||'No additional notes were entered. Use the connected application records as the current evidence.')+appEvidence;
+  if(details.length<10&&!Object.values(snapshot).some(rows=>rows.length)){
+    status.textContent='Add report notes or record facilities activity in the app before generating a PID Report.';return;
+  }
+  if(source.length>120000||register.length>200000){
+    status.textContent='The connected records are too large for one report. Narrow the app’s retained records or add report notes, then try again.';return;
+  }
+  const previousForAI=previousReport?{generatedAt:previousReport.generatedAt,report:Object.fromEntries(['Executive Summary','Current Report','Issues','Recommendations','Conclusion'].filter(key=>typeof previousReport.report?.[key]==='string').map(key=>[key,previousReport.report[key]]))}:null;
   button.disabled=true;button.textContent='Generating PID Report...';status.textContent=previousReport?'Generating the report and comparing it with the previous PID Report...':'Generating the first PID Report...';output.innerHTML='';
   try{
-    const response=await apiFetch('/api/ai/programme-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source,previousReport})});
+    const response=await apiFetch('/api/ai/programme-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source,previousReport:previousForAI})});
     const result=await response.json();if(!response.ok)throw new Error(result.error||'PID Report generation failed.');
-    programmeReportResult={...result.report,Title:title,ReportType:reportType,Organisation:organisation,ReportingPeriod:period,Tone:tone};programmeReportSections=PROGRAMME_REPORT_SECTIONS.filter(section=>typeof programmeReportResult[section]==='string');
+    const coreReport={...result.report,Title:title,ReportType:reportType,Organisation:organisation,ReportingPeriod:period,Tone:tone};
+    programmeReportResult={...coreReport,'Application Data Register':register};
+    programmeReportSections=[...PROGRAMME_REPORT_SECTIONS.filter(section=>typeof programmeReportResult[section]==='string'),'Application Data Register'];
     const generatedAt=new Date().toISOString();
     if(!Array.isArray(DATA.programmeReports))DATA.programmeReports=[];
     const reportId='PIDR-'+Date.now();
-    DATA.programmeReports.push({id:reportId,generatedAt,source,report:programmeReportResult});
+    DATA.pidReportLatestSnapshot=snapshot;
+    DATA.programmeReports.push({id:reportId,generatedAt,source:details,report:coreReport});
     if(DATA.programmeReports.length>30)DATA.programmeReports=DATA.programmeReports.slice(-30);
     await persist();
-    output.innerHTML='<div style="padding:14px 0 4px;"><h2 style="font-size:18px;margin:0 0 5px;">'+escapeHtml(title)+'</h2><p style="color:var(--ink-soft);font-size:12px;margin:0;">'+escapeHtml(organisation)+' · '+escapeHtml(reportType)+' · '+escapeHtml(period)+' · '+escapeHtml(tone)+' tone</p></div>'+programmeReportSections.map(section=>'<section style="border-top:1px solid var(--border);padding:14px 0 2px;"><h3 style="font-size:14px;margin:0 0 6px;">'+escapeHtml(section)+'</h3><p style="white-space:pre-wrap;margin:0;color:var(--ink-soft);line-height:1.6;">'+escapeHtml(programmeReportResult[section])+'</p></section>').join('');
+    output.innerHTML='<div style="padding:14px 0 4px;"><h2 style="font-size:18px;margin:0 0 5px;">'+escapeHtml(title)+'</h2><p style="color:var(--ink-soft);font-size:12px;margin:0;">'+escapeHtml(organisation)+' · '+escapeHtml(reportType)+' · '+escapeHtml(period)+' · '+escapeHtml(tone)+' tone</p></div>'+programmeReportSections.map(section=>section==='Application Data Register'?'<details style="border-top:1px solid var(--border);padding:14px 0 2px;"><summary style="font-size:14px;font-weight:700;cursor:pointer;">Application Data Register · complete records and changes</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:620px;overflow:auto;margin:10px 0;color:var(--ink-soft);font:11px/1.55 var(--font-mono);">'+escapeHtml(programmeReportResult[section])+'</pre></details>':'<section style="border-top:1px solid var(--border);padding:14px 0 2px;"><h3 style="font-size:14px;margin:0 0 6px;">'+escapeHtml(section)+'</h3><p style="white-space:pre-wrap;margin:0;color:var(--ink-soft);line-height:1.6;">'+escapeHtml(programmeReportResult[section])+'</p></section>').join('');
     document.getElementById('download-programme-report').style.display='';
     const comparison=previousReport?' Compared with the report generated '+new Date(previousReport.generatedAt).toLocaleString()+'.':' No earlier PID Report was available for comparison.';
-    status.textContent='PID Report generated with '+result.model+'.'+comparison+' Creating the Word document...';
+    status.textContent='PID Report generated with '+result.model+'.'+comparison+' Creating the Word document with the complete application data register...';
     try{
       const word=await createAndStorePidReportWord(programmeReportResult,generatedAt,reportId);
       programmeReportWordBlob=word.blob;programmeReportWordName=word.filename;
       document.getElementById('download-programme-report').style.display='';
-      status.textContent='Full PID Report generated and stored in PID Cloud Documents as a Word file ('+word.storageLabel+').'+comparison+' Review the evidence before issue.';
+      status.textContent='Complete PID Report generated and stored in PID Cloud Documents as a Word file ('+word.storageLabel+'). It includes the live app records and changes since the previous report.'+comparison;
     }catch(wordError){
       status.textContent='PID Report generated and saved in report history, but the Word document could not be stored: '+(wordError.message||'Document storage unavailable.');
     }
   }catch(error){status.textContent=error.message||'PID Report generation failed.';}
-  finally{button.disabled=false;button.textContent='Generate PID Report';}
+  finally{button.disabled=false;button.textContent='Generate complete PID Report';}
 }
 async function createAndStorePidReportWord(report,generatedAt,reportId){
   const response=await apiFetch('/api/reports/pid-report/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report,generatedAt})});
@@ -3421,6 +3503,7 @@ function renderAll(){
   renderReports();
   renderIntern();
   renderDocuments();
+  renderPidReportDataSummary();
   renderTopbar();
   renderAdminSettings();
   renderGlobalSearchResults();
