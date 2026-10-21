@@ -403,7 +403,9 @@ function zipStore(entries){
 function pidReportDocx(report,generatedAt){
   const intro='OAU-PID has initiated a programme aimed at assessing, refurbishing and advancing all 45 UNISA facilities located across the various regions. The programme seeks to improve the condition, functionality, safety and technological capability of the facilities to provide students, learners, educators and staff with suitable environments that support teaching, learning and operational activities.';
   const order=['Executive Summary','Introduction','Previous Report Comparison','Current Report','Issues','Recommendations','Conclusion'];
-  const paragraphs=[wordParagraph('PID Report','Title'),wordParagraph('OAU-PID Facilities Programme','Subtitle'),wordParagraph('Generated: '+generatedAt,'Normal')];
+  const reportTitle=typeof report.Title==='string'&&report.Title.trim()?report.Title.trim():'PID Report';
+  const reportSubtitle=[report.Organisation||'OAU-PID Facilities Programme',report.ReportType,report.ReportingPeriod].filter(value=>typeof value==='string'&&value.trim()).join(' · ');
+  const paragraphs=[wordParagraph(reportTitle,'Title'),wordParagraph(reportSubtitle||'OAU-PID Facilities Programme','Subtitle'),wordParagraph('Generated: '+generatedAt,'Normal')];
   for(const section of order){
     if(typeof report[section]!=='string')continue;
     paragraphs.push(wordParagraph(section,'Heading1'));
