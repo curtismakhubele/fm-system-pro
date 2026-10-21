@@ -706,35 +706,7 @@
 
     <!-- DOCUMENTS -->
     <section class="view" id="view-pid-report-studio" data-roles="admin,hq,centre">
-      <div class="topbar">
-        <div><h1>PID Report Studio</h1><div class="meta">Generate a complete, evidence-led PID report from this app’s live facilities records and save it to PID Cloud Documents.</div></div>
-      </div>
-      <div class="panel" style="margin-bottom:16px;overflow:hidden;">
-        <div style="padding:22px 24px;background:linear-gradient(120deg,#10234b,#2457d6);color:#fff;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;">
-            <div><div style="font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:.8;">OAU-PID · UNISA FACILITIES PROGRAMME</div>
-            <h2 style="font-size:22px;margin:8px 0 6px;">A complete picture of programme activity</h2>
-            <div style="font-size:13px;line-height:1.6;max-width:850px;opacity:.9;">The report combines your current notes with live app records, identifies changes since the previous generated report, and includes a detailed application data register in the saved Word document.</div></div>
-            <img src="pid-report-studio-logo.jpg" alt="PID Report Studio logo" style="width:82px;height:82px;flex:0 0 82px;object-fit:contain;border-radius:12px;background:#fff;padding:4px;box-shadow:0 5px 18px rgba(0,0,0,.18);">
-          </div>
-        </div>
-        <div id="pid-report-data-summary" class="row2" style="padding:14px 18px;margin:0;gap:10px;"></div>
-      </div>
-            <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head"><div><h2>Build your PID Report</h2><div class="sub">Generate a full facilities programme report and save its Word document to PID Cloud Documents.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent btn-sm" id="generate-programme-report" onclick="generateProgrammeReport()">Generate complete PID Report</button><button class="btn btn-ghost btn-sm" id="download-programme-report" onclick="downloadProgrammeReport()" style="display:none;">Download Word document</button></div></div>
-        <div class="row2">
-          <div class="field"><label for="programme-report-title">Report title</label><input id="programme-report-title" value="PID Facilities Management Report" placeholder="Enter a report title"></div>
-          <div class="field"><label for="programme-report-type">Report type</label><select id="programme-report-type"><option>Facilities programme review</option><option>Progress report</option><option>Monthly performance report</option><option>Incident report</option><option>Technical report</option></select></div>
-        </div>
-        <div class="row2">
-          <div class="field"><label for="programme-report-org">Organisation / department</label><input id="programme-report-org" value="OAU-PID | UNISA"></div>
-          <div class="field"><label for="programme-report-period">Reporting period</label><input id="programme-report-period" placeholder="e.g. October 2026"></div>
-        </div>
-        <div class="field"><label for="programme-report-tone">Writing tone</label><select id="programme-report-tone"><option>Professional</option><option>Executive</option><option>Technical</option><option>Academic</option><option>Concise</option></select></div>
-        <div class="field"><label for="programme-report-source">Additional report notes and evidence</label><textarea id="programme-report-source" rows="6" placeholder="Optional: add context, decisions, review findings or evidence not already recorded in the app. The required programme introduction is inserted automatically."></textarea><small style="color:var(--ink-soft);">The report compares with the last generated PID Report when one exists. Include evidence; the report will not claim progress or outcomes that were not provided.</small></div>
-        <p id="programme-report-status" role="status" aria-live="polite" style="color:var(--ink-soft);font-size:12px;"></p>
-        <div id="programme-report-output"></div>
-      </div>
+      <iframe id="pid-report-studio-frame" title="PID Report Studio" src="pid-report-studio.html" onload="this.contentWindow.renderLibrary()" style="width:100%;height:calc(100vh - 112px);min-height:760px;border:0;border-radius:12px;background:var(--panel);display:block;"></iframe>
     </section>
 
     <section class="view" id="view-documents">
@@ -3173,14 +3145,70 @@ function pidReportRegister(snapshot,changes,capturedAt){
   return JSON.stringify({capturedAt,records:snapshot,changesSincePreviousReport:changes},null,2);
 }
 function renderPidReportDataSummary(){
-  const host=document.getElementById('pid-report-data-summary');
-  if(!host||!DATA)return;
-  const cards=PID_REPORT_DATASETS.slice(0,8).map(([key,label])=>{
-    const count=Array.isArray(DATA[key])?DATA[key].length:0;
-    return '<div style="padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel);"><div style="font-size:10px;color:var(--ink-soft);">'+escapeHtml(label)+'</div><strong style="display:block;font:600 18px var(--font-display);margin-top:3px;">'+count+'</strong></div>';
-  });
-  host.innerHTML=cards.join('');
+  const frame=document.getElementById('pid-report-studio-frame');
+  try{if(frame&&frame.contentWindow&&typeof frame.contentWindow.renderLibrary==='function')frame.contentWindow.renderLibrary();}catch(error){}
 }
+async function generatePidReportForStudio(input={}){
+  if(!DATA)throw new Error('Application records are still loading. Try again in a moment.');
+  const details=String(input.details||'').trim();
+  const title=String(input.title||'PID Facilities Management Report').trim();
+  const reportType=String(input.type||'Facilities programme review').trim();
+  const organisation=String(input.org||'OAU-PID | UNISA').trim();
+  const period=String(input.period||'Not specified').trim();
+  const tone=String(input.tone||'Professional').trim();
+  const earlier=(DATA.programmeReports||[]).filter(item=>item&&item.report&&item.generatedAt&&Date.parse(item.generatedAt)<Date.now()).sort((a,b)=>Date.parse(a.generatedAt)-Date.parse(b.generatedAt));
+  const previousReport=earlier.length?earlier[earlier.length-1]:null;
+  const snapshot=buildPidReportSnapshot(),generatedAt=new Date().toISOString();
+  const changes=buildPidReportChanges(DATA.pidReportLatestSnapshot,snapshot);
+  const register=pidReportRegister(snapshot,changes,generatedAt);
+  const appEvidence='\n\nLIVE APPLICATION RECORDS (captured '+generatedAt+'):\n'+JSON.stringify(snapshot)+'\n\nCHANGES SINCE THE PREVIOUS GENERATED REPORT:\n'+JSON.stringify(changes);
+  const source='Report title: '+title+'\nReport type: '+reportType+'\nOrganisation: '+organisation+'\nReporting period: '+period+'\nWriting tone: '+tone+'\n\nAdditional report notes and evidence:\n'+(details||'No additional notes were entered. Use the connected application records as the current evidence.')+appEvidence;
+  if(details.length<10&&!Object.values(snapshot).some(rows=>rows.length))throw new Error('Add report notes or record facilities activity in the app before generating a PID Report.');
+  if(source.length>120000||register.length>200000)throw new Error('The connected records are too large for one report. Narrow the app’s retained records or add report notes, then try again.');
+  const previousForAI=previousReport?{generatedAt:previousReport.generatedAt,report:Object.fromEntries(['Executive Summary','Current Report','Issues','Recommendations','Conclusion'].filter(key=>typeof previousReport.report?.[key]==='string').map(key=>[key,previousReport.report[key]]))}:null;
+  const response=await apiFetch('/api/ai/programme-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source,previousReport:previousForAI})});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'PID Report generation failed.');
+  const coreReport={...result.report,Title:title,ReportType:reportType,Organisation:organisation,ReportingPeriod:period,Tone:tone};
+  const report={...coreReport,'Application Data Register':register};
+  if(!Array.isArray(DATA.programmeReports))DATA.programmeReports=[];
+  const reportId='PIDR-'+Date.now();
+  DATA.pidReportLatestSnapshot=snapshot;
+  DATA.programmeReports.push({id:reportId,generatedAt,source:details,report:coreReport});
+  if(DATA.programmeReports.length>30)DATA.programmeReports=DATA.programmeReports.slice(-30);
+  await persist();
+  return {report,generatedAt,reportId,model:result.model,comparedTo:result.comparedTo||null};
+}
+async function storePidReportStudioFile({filename,blob,mimeType,reportId}={}){
+  if(!DATA||!blob)throw new Error('Choose or generate a document before saving.');
+  if(documentLibraryBytes()+blob.size>DOC_LIBRARY_CAPACITY_BYTES)throw new Error('The PID Cloud document library limit would be exceeded.');
+  const safeName=String(filename||'PID-Report.docx').replace(/[\\/:*?"<>|]+/g,'-').slice(0,160);
+  let record=null,storage='embedded';
+  if(msAuth.account&&msAuth.canWriteFiles){
+    const uploaded=await trySaveToSharePoint(safeName,blob,mimeType||'application/octet-stream');
+    if(uploaded.ok){record={id:nextId('DOC','doc'),name:safeName,mimeType:mimeType||blob.type||'application/octet-stream',sizeKB:Math.ceil(blob.size/1024),sizeBytes:blob.size,storage:'sharepoint',webUrl:uploaded.webUrl,dataUrl:null,centreId:'',addedDate:new Date().toISOString().slice(0,10),studioReport:true,studioReportId:String(reportId||'')};storage='sharepoint';}
+  }
+  if(!record){
+    if(blob.size>DOC_LOCAL_LIMIT_BYTES)throw new Error('Connect Microsoft storage in Settings to save this file to PID Cloud.');
+    const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+    for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+    record={id:nextId('DOC','doc'),name:safeName,mimeType:mimeType||blob.type||'application/octet-stream',sizeKB:Math.ceil(blob.size/1024),sizeBytes:blob.size,storage,dataUrl:'data:'+(mimeType||blob.type||'application/octet-stream')+';base64,'+btoa(binary),webUrl:null,centreId:'',addedDate:new Date().toISOString().slice(0,10),studioReport:true,studioReportId:String(reportId||'')};
+  }
+  DATA.documents.push(record);await persist();renderDocuments();renderPidReportDataSummary();
+  return {id:record.id,name:record.name,storage:record.storage};
+}
+async function deletePidReportStudioDocument(id){
+  const record=(DATA.documents||[]).find(doc=>doc.id===id);
+  if(!record)return {ok:false,error:'Document not found.'};
+  if(record.storage==='sharepoint')return {ok:false,error:'This file is stored in SharePoint. Remove it from SharePoint to delete the original.'};
+  DATA.documents=DATA.documents.filter(doc=>doc.id!==id);await persist();renderDocuments();renderPidReportDataSummary();return {ok:true};
+}
+window.pidReportStudioBridge={
+  generate:generatePidReportForStudio,
+  listDocuments:()=>((DATA&&DATA.documents)||[]).map(doc=>({id:doc.id,title:doc.name,name:doc.name,type:doc.mimeType,mimeType:doc.mimeType,org:'PID Cloud',updated:doc.addedDate||'',addedDate:doc.addedDate||'',storage:doc.storage||'embedded',sizeKB:doc.sizeKB||0,studioReport:!!doc.studioReport})),
+  storeDocument:storePidReportStudioFile,
+  getDocumentUrl:id=>{const doc=(DATA&&DATA.documents||[]).find(item=>item.id===id);return doc&&(doc.webUrl||doc.dataUrl)||'';},
+  deleteDocument:deletePidReportStudioDocument
+};
 async function generateProgrammeReport(){
   const button=document.getElementById('generate-programme-report'),status=document.getElementById('programme-report-status');
   const details=document.getElementById('programme-report-source').value.trim(),output=document.getElementById('programme-report-output');

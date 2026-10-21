@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PID AI Report Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<style>
+:root{--navy:#101c3b;--blue:#2457d6;--cyan:#22b8cf;--ink:#18233e;--muted:#6d7890;--line:#e4e9f2;--bg:#f4f7fb;--white:#fff;--green:#15966a}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 15px;font-weight:650;transition:.15s}button:hover{transform:translateY(-1px)}.primary{background:var(--blue);color:white}.secondary{background:#edf2ff;color:#2448a7}.dark{background:var(--navy);color:white}.outline{background:white;border:1px solid var(--line);color:var(--ink)}.danger{color:#b42318;background:#fff0ef}
+.topbar{height:72px;background:var(--navy);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10;box-shadow:0 4px 20px #0b173022}.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.2px}.logo{height:40px;width:40px;border-radius:12px;background:linear-gradient(135deg,#35d0d8,#3c67f5);display:grid;place-items:center;font-size:19px;font-weight:900}.brand small{display:block;font-size:10px;color:#b8c6e9;letter-spacing:1.5px;margin-top:3px}.topright{display:flex;align-items:center;gap:10px;font-size:12px;color:#c9d4ef}.statusdot{width:8px;height:8px;background:#43d49b;border-radius:50%;display:inline-block;margin-right:6px}
+.layout{display:grid;grid-template-columns:235px 1fr;min-height:calc(100vh - 72px)}aside{background:#fff;border-right:1px solid var(--line);padding:22px 14px}.navlabel{font-size:10px;letter-spacing:1.5px;color:#9aa4b8;font-weight:800;padding:12px 12px 8px}.navitem{padding:12px;border-radius:10px;color:#66728a;font-size:13px;font-weight:600;display:flex;gap:12px;align-items:center;margin:3px 0;cursor:pointer}.navitem.active,.navitem:hover{background:#edf2ff;color:#244fc4}.navitem span:first-child{font-size:17px;width:22px;text-align:center}.sidecard{margin:25px 4px 0;background:#f2f6ff;border:1px solid #e1e9ff;border-radius:14px;padding:14px;font-size:12px;line-height:1.5;color:#65718c}.sidecard strong{display:block;color:#25365d;margin-bottom:5px}
+main{padding:28px;min-width:0;max-width:1600px;width:100%;margin:0 auto}.pagehead{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:24px}.eyebrow{font-size:11px;font-weight:800;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase}.pagehead h1{margin:8px 0 6px;font-size:28px;letter-spacing:-.8px}.sub{color:var(--muted);font-size:13px;line-height:1.5}.headactions{display:flex;gap:8px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}.stat{background:white;border:1px solid var(--line);border-radius:15px;padding:17px}.stat-top{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.stat-icon{width:34px;height:34px;background:#edf2ff;border-radius:10px;display:grid;place-items:center;color:var(--blue);font-size:16px}.stat strong{display:block;font-size:27px;margin:12px 0 3px}.stat small{font-size:11px;color:#8490a5}
+.workspace{display:grid;grid-template-columns:minmax(300px,.78fr) minmax(420px,1.22fr);gap:18px;align-items:start}.panel{background:white;border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}.panelhead{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.panelhead h2{font-size:14px;margin:0}.panelbody{padding:19px}.field{margin-bottom:15px}.field label{display:block;font-size:11px;font-weight:750;color:#526079;margin-bottom:7px}.field input,.field select,.field textarea{width:100%;border:1px solid #dce3ef;border-radius:9px;padding:11px 12px;color:var(--ink);outline:none;background:#fff;font-size:12px}.field input:focus,.field select:focus,.field textarea:focus{border-color:#6889ef;box-shadow:0 0 0 3px #2457d612}.field textarea{min-height:108px;resize:vertical;line-height:1.55}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hint{font-size:10px;color:#8b96a9;line-height:1.5;margin-top:6px}.checkrow{display:flex;gap:9px;align-items:flex-start;font-size:11px;color:#64718a;line-height:1.5;margin:12px 0}.checkrow input{margin-top:2px}.generate{width:100%;padding:14px}.templatechips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}.chip{border:1px solid #e0e7f2;background:#f8faff;border-radius:8px;padding:7px 9px;font-size:10px;color:#53627d;cursor:pointer}.chip:hover{border-color:#9cb2fa;color:#244fc4}
+.editorbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.editorbar button{padding:8px 10px;font-size:11px}.previewarea{padding:18px;background:#f4f6fb;min-height:560px}.docpage{background:white;box-shadow:0 3px 15px #26395a12;border:1px solid #e9edf4;max-width:720px;min-height:650px;margin:0 auto;padding:45px 48px;color:#26324b;line-height:1.7;font-family:Arial,sans-serif;outline:none}.docpage h1{font-size:25px;line-height:1.25;color:#17284d;margin:0 0 9px}.docpage .docmeta{font-size:10px;color:#78849b;border-bottom:2px solid #2c5bd7;padding-bottom:17px;margin-bottom:25px}.docpage h2{font-size:15px;color:#2147a2;margin-top:23px;margin-bottom:7px}.docpage p,.docpage li{font-size:12px}.docpage ul{padding-left:20px}.docpage .covermark{color:#2457d6;font-size:10px;letter-spacing:2px;font-weight:800;margin-bottom:13px}.empty{display:grid;place-items:center;text-align:center;min-height:450px;color:#8792a7}.empty .big{font-size:40px;margin-bottom:12px}.library{margin-top:20px}.librarytools{display:flex;gap:8px;align-items:center}.librarytools input{border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px;width:210px}.doclist{padding:0 18px 12px}.docrow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #edf0f5}.fileicon{height:39px;width:39px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:800}.fileicon.word{background:#eaf0ff;color:#2757c8}.fileicon.pdf{background:#fff0ef;color:#c4443b}.fileicon.ppt{background:#fff2e5;color:#b96a19}.filename{font-size:12px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.filemeta{font-size:10px;color:#8b96a9;margin-top:4px}.rowactions{display:flex;gap:5px}.rowactions button{padding:7px 9px;font-size:10px}.toast{position:fixed;right:22px;bottom:22px;background:#142348;color:#fff;padding:13px 17px;border-radius:10px;box-shadow:0 8px 30px #10204440;font-size:12px;z-index:20;display:none}.footnote{font-size:10px;color:#8b96a9;line-height:1.6;margin-top:15px}.badge{font-size:9px;font-weight:800;letter-spacing:.5px;border-radius:5px;background:#e8f8f0;color:#14855d;padding:5px 7px}
+@media(max-width:1100px){.layout{grid-template-columns:190px 1fr}.workspace{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.topbar{padding:0 15px}.topright{display:none}.layout{display:block}aside{display:none}main{padding:17px}.pagehead{display:block}.headactions{margin-top:14px}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:22px}.docpage{padding:28px 23px}.panelbody{padding:14px}.two{grid-template-columns:1fr}.librarytools input{width:130px}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="brand"><img src="pid-report-studio-logo.jpg" alt="PID Report Studio logo" style="width:46px;height:46px;object-fit:contain;border-radius:9px;background:#fff"><div>PID REPORT STUDIO<small>WORKSPACE · INNOVATION · REPORT</small></div></div><div class="topright"><span><i class="statusdot"></i>Workspace ready</span><span>Connected · PID Cloud documents</span></div></header>
+<div class="layout">
+<aside>
+<div style="padding:8px 8px 18px;text-align:center"><img src="pid-report-studio-logo.jpg" alt="PID Report Studio" style="width:100%;max-width:190px;height:auto;object-fit:contain;border-radius:10px;background:#fff"></div><div class="navlabel">WORKSPACE</div>
+<div class="navitem active" onclick="scrollTo({top:0,behavior:'smooth'})"><span>✦</span> AI Report Writer</div>
+<div class="navitem" onclick="document.getElementById('editorPanel').scrollIntoView({behavior:'smooth'})"><span>▤</span> Document editor</div>
+<div class="navitem" onclick="document.getElementById('libraryPanel').scrollIntoView({behavior:'smooth'})"><span>▣</span> My documents</div>
+<div class="navlabel">DOCUMENT TOOLS</div>
+<div class="navitem" onclick="exportDoc('docx')"><span>W</span> Export to Word</div>
+<div class="navitem" onclick="exportDoc('pdf')"><span>▧</span> Export to PDF</div>
+<div class="navitem" onclick="exportDoc('pptx')"><span>▥</span> Export to PowerPoint</div>
+<div class="sidecard"><strong>PID Cloud Storage</strong>Generated reports are saved in the app document library or your connected SharePoint / OneDrive storage.</div>
+</aside>
+<main>
+<div class="pagehead"><div><div class="eyebrow">Intelligent document workspace</div><h1>Turn your ideas into reports.</h1><div class="sub">Draft professional reports, refine the content, preview your work and export it in the format your team needs.</div></div><div class="headactions"><button class="outline" onclick="newDocument()">＋ New document</button><button class="primary" onclick="saveDocument()">▣ Save to library</button></div></div>
+<div class="stats">
+<div class="stat"><div class="stat-top">Documents saved <span class="stat-icon">▤</span></div><strong id="statDocs">0</strong><small>Saved in PID Cloud Documents</small></div>
+<div class="stat"><div class="stat-top">Formats supported <span class="stat-icon">⇩</span></div><strong>03</strong><small>Word · PDF · PowerPoint</small></div>
+<div class="stat"><div class="stat-top">Preview <span class="stat-icon">◉</span></div><strong>Live</strong><small>Edit and preview in one place</small></div>
+<div class="stat"><div class="stat-top">Cloud readiness <span class="stat-icon">☁</span></div><strong>Connected</strong><small>Live facilities records</small></div>
+</div>
+<div class="workspace">
+<section class="panel">
+<div class="panelhead"><h2>✦ AI report generator</h2><span class="badge">DRAFT ASSISTANT</span></div>
+<div class="panelbody">
+<div class="field"><label>REPORT TITLE</label><input id="title" value="Facilities Management Progress Report" placeholder="Enter a report title"></div>
+<div class="two"><div class="field"><label>REPORT TYPE</label><select id="type"><option>Progress report</option><option>Executive summary</option><option>Project report</option><option>Incident report</option><option>Meeting report</option><option>Technical report</option><option>Research report</option><option>Monthly performance report</option><option>Business proposal</option></select></div><div class="field"><label>TONE</label><select id="tone"><option>Professional</option><option>Executive</option><option>Technical</option><option>Academic</option><option>Concise</option></select></div></div>
+<div class="field"><label>ORGANISATION / DEPARTMENT</label><input id="org" value="OAU-PID | UNISA" placeholder="Organisation or department"></div>
+<div class="field"><label>REPORT DETAILS & KEY INFORMATION</label><textarea id="details" placeholder="Describe the project, achievements, challenges, dates, figures, risks and recommendations. Add the facts the report must include.">This report provides an update on facilities maintenance and refurbishment activities across learning centres. Include work completed, current progress, key risks, outstanding actions, and recommendations for the next reporting period.</textarea><div class="hint">Tip: Include dates, sites, measurable results and source facts. The draft assistant will structure the supplied information and flag items that need confirmation.</div></div>
+<div class="field"><label>REPORT PERIOD</label><input id="period" placeholder="e.g. October 2026"></div>
+<div class="field"><label>CHOOSE A STARTING STRUCTURE</label><div class="templatechips"><button class="chip" onclick="setTemplate('Executive summary')">Executive summary</button><button class="chip" onclick="setTemplate('Project report')">Project update</button><button class="chip" onclick="setTemplate('Incident report')">Incident report</button><button class="chip" onclick="setTemplate('Monthly performance report')">Monthly performance</button></div></div>
+<label class="checkrow"><input type="checkbox" id="includeActions" checked> Include recommendations, risks and an action plan.</label>
+<label class="checkrow"><input type="checkbox" id="includeDisclaimer" checked> Flag missing figures or facts instead of inventing them.</label>
+<button class="primary generate" onclick="generateReport()">✦ Generate report draft</button>
+<div class="footnote">This downloadable starter uses a local drafting template. Live generative AI requires a secured server-side AI API connection; do not place secret API keys in browser code.</div>
+</div>
+</section>
+<section class="panel" id="editorPanel">
+<div class="panelhead"><div><h2>Document preview & editor</h2><div class="hint">Select text and type to edit the draft.</div></div><div class="editorbar"><button class="outline" onclick="saveDocument()">Save</button></div></div>
+<div class="editorbar" style="padding:12px 16px;border-bottom:1px solid var(--line)"><button class="secondary" onclick="exportDoc('docx')">W Word</button><button class="secondary" onclick="exportDoc('pdf')">▧ PDF</button><button class="secondary" onclick="exportDoc('pptx')">▥ PowerPoint</button><button class="outline" onclick="window.print()">Print</button></div>
+<div class="previewarea"><article id="docpage" class="docpage" contenteditable="true"><div class="empty"><div><div class="big">▤</div><strong>Your report preview will appear here</strong><p>Enter the report details and select “Generate report draft”.<br>You can then edit the report directly on this page.</p></div></div></article></div>
+</section>
+</div>
+<section class="panel library" id="libraryPanel">
+<div class="panelhead"><div><h2>▣ My document library</h2><div class="hint">Saved drafts in this browser. Exported files are downloaded to your device.</div></div><div class="librarytools"><input id="search" placeholder="Search documents…" oninput="renderLibrary()"><button class="outline" onclick="renderLibrary()">↻ Refresh</button></div></div>
+<div class="doclist" id="doclist"></div>
+</section>
+<div class="footnote">PID Report Studio uses your connected facilities records. Login credentials, contact details and embedded file contents are excluded from report data.</div>
+</main></div>
+<div class="toast" id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+let currentId=null;
+let lastGeneratedReport=null;
+function toast(msg){let t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3800)}
+function appBridge(){try{return window.parent&&window.parent!==window?window.parent.pidReportStudioBridge:null}catch(e){return null}}
+function getDocs(){const bridge=appBridge();if(bridge)return bridge.listDocuments();try{return JSON.parse(localStorage.getItem('pidReportDocs')||'[]')}catch(e){return []}}
+function putDocs(d){if(!appBridge())localStorage.setItem('pidReportDocs',JSON.stringify(d));renderLibrary()}
+function safe(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function setTemplate(v){$('type').value=v;toast(v+' structure selected')}
+function sectionMarkup(title,value){
+ const content=String(value||'').trim();if(!content)return '';
+ if(title==='Application Data Register')return '<details open><summary>'+safe(title)+' · complete records and changes</summary><pre>'+safe(content)+'</pre></details>';
+ return '<h2>'+safe(title)+'</h2><p>'+safe(content)+'</p>';
+}
+async function generateReport(){
+ const bridge=appBridge();if(!bridge){toast('Open PID Report Studio from Coordination in the facilities app.');return}
+ const button=document.querySelector('.generate'),title=$('title').value.trim()||'PID Facilities Management Report',details=$('details').value.trim();
+ const notes=[details,$('includeActions').checked?'Include practical recommendations and an action plan.':'Keep recommendations concise while retaining the required report section.',$('includeDisclaimer').checked?'Clearly flag missing evidence and never invent figures or outcomes.':''].filter(Boolean).join('\n\n');
+ button.disabled=true;button.textContent='✦ Generating complete PID Report…';
+ $('docpage').innerHTML='<div class="empty"><div><div class="big">✦</div><strong>Generating your complete report</strong><p>Reading current facilities records and comparing with the previous PID Report.</p></div></div>';
+ try{
+  const generated=await bridge.generate({title,type:$('type').value,tone:$('tone').value,org:$('org').value.trim()||'OAU-PID | UNISA',period:$('period').value.trim()||'Not specified',details:notes});
+  const report=generated.report||{};lastGeneratedReport=generated;currentId=generated.reportId||null;
+  const order=['Executive Summary','Introduction','Previous Report Comparison','Current Report','Issues','Recommendations','Conclusion','Application Data Register'];
+  const body=order.map(key=>sectionMarkup(key,report[key])).filter(Boolean).join('');
+  $('docpage').innerHTML='<div class="covermark">PID REPORT STUDIO</div><h1>'+safe(report.Title||title)+'</h1><div class="docmeta">'+safe(report.Organisation||$('org').value)+' &nbsp; • &nbsp; '+safe(report.ReportType||$('type').value)+' &nbsp; • &nbsp; Reporting period: '+safe(report.ReportingPeriod||$('period').value||'Not specified')+'</div>'+body+'<p style="margin-top:34px;border-top:1px solid #e2e7ef;padding-top:14px;font-size:10px;color:#7d899e">Prepared using PID Report Studio · Draft for review · Generated '+safe(new Date(generated.generatedAt).toLocaleString())+'</p>';
+  renderLibrary();toast('Complete PID Report generated. Review and edit the document before saving or exporting.');
+ }catch(error){$('docpage').innerHTML='<div class="empty"><div><div class="big">!</div><strong>Report generation could not complete</strong><p>'+safe(error.message||'Check the app connection and try again.')+'</p></div></div>';toast(error.message||'PID Report generation failed.')}
+ finally{button.disabled=false;button.textContent='✦ Generate report draft'}
+}
+function newDocument(){currentId=null;$('title').value='';$('details').value='';$('period').value='';$('docpage').innerHTML='<div class="empty"><div><div class="big">▤</div><strong>New document</strong><p>Enter details and generate a draft.</p></div></div>';window.scrollTo({top:0,behavior:'smooth'})}
+async function buildWordBlob(){
+ if(!window.docx)throw Error('Word export library unavailable. Check internet access and reload.');
+ const {Document,Packer,Paragraph,TextRun,HeadingLevel}=window.docx,el=$('docpage'),paras=[],title=$('title').value||'PID Facilities Management Report';
+ paras.push(new Paragraph({text:title,heading:HeadingLevel.TITLE}));
+ paras.push(new Paragraph({text:($('org').value||'OAU-PID | UNISA')+' | '+$('type').value+' | '+($('period').value||''),spacing:{after:260}}));
+ const walker=document.createTreeWalker(el,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT);let node;
+ while(node=walker.nextNode()){
+  if(node.nodeType===Node.TEXT_NODE){const txt=node.textContent.trim();if(txt)paras.push(new Paragraph({children:[new TextRun(txt)]}))}
+  else if(/^H[1-3]$/.test(node.tagName)&&node.innerText.trim())paras.push(new Paragraph({text:node.innerText.trim(),heading:node.tagName==='H1'?HeadingLevel.HEADING_1:HeadingLevel.HEADING_2}));
+ }
+ return Packer.toBlob(new Document({sections:[{properties:{},children:paras}]}));
+}
+async function saveDocument(){
+ const content=$('docpage').innerHTML;if(!content||content.includes('class="empty"')){toast('Generate or write a report before saving.');return}
+ const bridge=appBridge(),suffix=(lastGeneratedReport&&lastGeneratedReport.reportId)||currentId||Date.now(),name=filename()+'-'+String(suffix).replace(/[^a-z0-9_-]/gi,'-')+'.docx';
+ try{
+  if(bridge){const blob=await buildWordBlob(),saved=await bridge.storeDocument({filename:name,blob,mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',reportId:currentId});currentId=saved.id;renderLibrary();toast('Word report saved to PID Cloud Documents.')}
+  else{const docs=getDocs(),item={id:currentId||('doc_'+Date.now()),title:$('title').value.trim()||'Untitled Report',type:$('type').value,org:$('org').value,period:$('period').value,content,updated:new Date().toISOString()};const idx=docs.findIndex(d=>d.id===item.id);if(idx>=0)docs[idx]=item;else docs.unshift(item);currentId=item.id;putDocs(docs);toast('Saved to this browser library.')}
+ }catch(error){toast(error.message||'Could not save this report to PID Cloud.')}
+}
+function renderLibrary(){
+ const docs=getDocs(),q=($('search').value||'').toLowerCase();$('statDocs').textContent=docs.length;
+ const list=docs.filter(d=>((d.title||d.name||'')+' '+(d.type||d.mimeType||'')+' '+(d.org||'')).toLowerCase().includes(q));
+ $('doclist').innerHTML=list.length?list.map(d=>{
+  const title=d.title||d.name||'PID Report',date=d.updated||d.addedDate||new Date().toISOString(),canDelete=d.storage!=='sharepoint';
+  return '<div class="docrow"><div class="fileicon word">DOC</div><div><div class="filename">'+safe(title)+'</div><div class="filemeta">'+safe(d.type||d.mimeType||'Word document')+' · '+safe(new Date(date).toLocaleString())+' · '+safe(d.storage==='sharepoint'?'PID Cloud / SharePoint':'PID Cloud library')+'</div></div><div class="rowactions"><button class="secondary" onclick="openDoc(\''+safe(d.id)+'\')">Open</button>'+(canDelete?'<button class="outline" onclick="deleteDoc(\''+safe(d.id)+'\')">Delete</button>':'')+'</div></div>'
+ }).join(''):'<div style="padding:28px 0;text-align:center;color:#8792a7;font-size:12px">No PID Cloud documents found. Generate a report and select Save to library.</div>';
+}
+function openDoc(id){
+ const bridge=appBridge();
+ if(bridge){const url=bridge.getDocumentUrl(id);if(url){window.open(url,'_blank','noopener,noreferrer');return}toast('This document has no available download link.');return}
+ const d=getDocs().find(x=>x.id===id);if(!d)return;currentId=d.id;$('title').value=d.title;$('type').value=d.type;$('org').value=d.org||'';$('period').value=d.period||'';$('docpage').innerHTML=d.content;$('editorPanel').scrollIntoView({behavior:'smooth'});toast('Document opened for preview and editing')
+}
+async function deleteDoc(id){
+ if(!confirm('Remove this saved document from the PID app library?'))return;
+ const bridge=appBridge();if(bridge){const result=await bridge.deleteDocument(id);if(!result.ok){toast(result.error||'Could not remove this document.');return}}
+ else putDocs(getDocs().filter(d=>d.id!==id));
+ if(currentId===id)currentId=null;renderLibrary();toast('Document removed from the app library')
+}
+function plainText(){return $('docpage').innerText||''}
+function filename(){return ($('title').value.trim()||'PID-Report').replace(/[^\w\-]+/g,'_').slice(0,80)}
+async function exportDoc(fmt){
+ const el=$('docpage');if(!el.innerText.trim()||el.innerText.includes('Your report preview will appear here')){toast('Generate or write a report before exporting.');return}
+ const name=filename();
+ try{
+ if(fmt==='docx'){
+  if(!window.docx)throw Error('Word export library unavailable. Check internet access and reload.');
+  const blob=await buildWordBlob();downloadBlob(blob,name+'.docx');toast('Word document exported.')
+ }else if(fmt==='pdf'){
+  if(!window.jspdf||!window.html2canvas)throw Error('PDF export library unavailable. Check internet access and reload.');
+  const canvas=await html2canvas(el,{scale:1.5,backgroundColor:'#ffffff',useCORS:true});const img=canvas.toDataURL('image/jpeg',.92);const pdf=new window.jspdf.jsPDF('p','mm','a4');const pageW=210,pageH=297,margin=10,drawW=pageW-20,drawH=canvas.height*drawW/canvas.width;let heightLeft=drawH,position=margin;
+  pdf.addImage(img,'JPEG',margin,position,drawW,drawH);heightLeft-=pageH-20;
+  while(heightLeft>0){position=heightLeft-drawH+margin;pdf.addPage();pdf.addImage(img,'JPEG',margin,position,drawW,drawH);heightLeft-=pageH-20}
+  pdf.save(name+'.pdf');toast('PDF exported.')
+ }else if(fmt==='pptx'){
+  if(!window.pptxgen)throw Error('PowerPoint export library unavailable. Check internet access and reload.');
+  const pptx=new pptxgen();pptx.layout='LAYOUT_WIDE';pptx.author='PID AI Report Studio';pptx.subject=$('type').value;pptx.title=$('title').value;
+  let slide=pptx.addSlide();slide.background={color:'101C3B'};slide.addText('PID REPORT STUDIO',{x:.7,y:.55,w:6,h:.3,fontSize:12,bold:true,color:'62D5DF',charSpacing:2});slide.addText($('title').value||'Report',{x:.7,y:1.45,w:11.7,h:1.5,fontSize:30,bold:true,color:'FFFFFF',breakLine:false});slide.addText(($('org').value||'')+'\\n'+$('type').value+' · '+($('period').value||''),{x:.75,y:3.35,w:10,h:1,fontSize:16,color:'D7E2FF',breakLine:false});slide.addText('Prepared with PID AI Report Studio · Draft for review',{x:.75,y:6.7,w:11,h:.3,fontSize:10,color:'B9C8EB'});
+  const headings=[...el.querySelectorAll('h2')];let body=[];
+  for(const h of headings){let next=h.nextElementSibling;let txt='';while(next&& !/^H[1-2]$/.test(next.tagName)){txt+=(next.innerText||'')+'\\n';next=next.nextElementSibling}body.push({title:h.innerText,body:txt.trim()})}
+  for(let i=0;i<body.length;i++){const s=pptx.addSlide();s.addText(body[i].title,{x:.6,y:.4,w:12,h:.55,fontSize:24,bold:true,color:'2147A2'});s.addShape(pptx.ShapeType.line,{x:.6,y:1.12,w:12,h:0,line:{color:'22B8CF',width:2}});s.addText(body[i].body||'See report for details.',{x:.8,y:1.45,w:11.6,h:5.3,fontSize:17,color:'26324B',breakLine:false,fit:'shrink',valign:'top',paraSpaceAfterPt:10});s.addText('PID REPORT STUDIO',{x:.7,y:7.05,w:5,h:.2,fontSize:8,color:'78849B',charSpacing:1})}
+  await pptx.writeFile({fileName:name+'.pptx'});toast('PowerPoint presentation exported.')
+ }
+ }catch(e){console.error(e);toast(e.message||'Export failed.')}
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+renderLibrary();
+</script>
+</body></html>
