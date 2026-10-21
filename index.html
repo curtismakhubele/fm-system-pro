@@ -2022,7 +2022,7 @@ async function saveWorkOrderPage(){
   const selectedPriority=document.getElementById('page-wo-priority').value;
   const priority=['Urgent','Emergency'].includes(selectedPriority)?'critical':selectedPriority.toLowerCase();
   const record={
-    id:nextId('WO','wo'),status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',approvedOn:DATA.adminSettings.workOrderApproval===false?new Date().toISOString().slice(0,10):'',createdDate:new Date().toISOString().slice(0,10),gpsCheckin:null,
+    id:nextId('WO','wo'),status:'pending_approval',approvedOn:DATA.adminSettings.workOrderApproval===false?new Date().toISOString().slice(0,10):'',createdDate:new Date().toISOString().slice(0,10),gpsCheckin:null,
     title,assetId:asset?asset.id:'',assetReference:asset?asset.tag||asset.assetTag||asset.id:assetText,
     centreId:centre?centre.id:'',facilityName:centre?centre.name:facilityName,
     type:'corrective',trade:document.getElementById('page-wo-trade').value,priority,
@@ -3068,12 +3068,12 @@ function submitAssetReport(){
   if(!assetEntry){showToast('Choose a registered asset or type its ID, tag or name');return;}
   const issue=document.getElementById('ar-issue').value.trim();if(!issue){showToast('Describe what you noticed');return;}
   const severity=document.getElementById('ar-severity').value,statusUpdate=document.getElementById('ar-status').value;
-  const wo={id:nextId('WO','wo'),title:'Asset issue reported: '+assetName,assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',type:'corrective',priority:severity,status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',assignedUserId:'',assignedTo:'Unassigned',waNumber:'',location:asset?asset.location||'-':'-',createdDate:new Date().toISOString().slice(0,10),dueDate:'',description:issue+'  (Reported by intern: '+intern.name+')',gpsCheckin:null,reportedByIntern:intern.name,reportedByUserId:intern.id,reportedByName:intern.name,reportedByEmail:intern.email||''};
+  const wo={id:nextId('WO','wo'),title:'Asset issue reported: '+assetName,assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',type:'corrective',priority:severity,status:'pending_approval',assignedUserId:'',assignedTo:'Unassigned',waNumber:'',location:asset?asset.location||'-':'-',createdDate:new Date().toISOString().slice(0,10),dueDate:'',description:issue+'  (Reported by intern: '+intern.name+')',gpsCheckin:null,reportedByIntern:intern.name,reportedByUserId:intern.id,reportedByName:intern.name,reportedByEmail:intern.email||''};
   DATA.workOrders.push(wo);
   const previousStatus=asset?asset.status:null;if(asset&&statusUpdate&&statusUpdate!==asset.status)asset.status=statusUpdate;
-  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
+  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:'pending_approval',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
   persist();document.getElementById('ar-issue').value='';document.getElementById('ar-status').value='';document.getElementById('ar-asset').value='';
-  renderAll();showToast(DATA.adminSettings.workOrderApproval===false?'Report submitted - work order '+wo.id+' is active':'Report submitted to HQ/admin for approval - work order '+wo.id+' created');
+  renderAll();showToast('Report submitted to HQ/admin for approval - work order '+wo.id+' created');
 }
 
 /* ---------- REPORTS ---------- */
