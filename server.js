@@ -425,8 +425,10 @@ async function handle(req, res) {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name || !ROLES.has(role)) return respond(res,400,{error:'A valid email, name, and role are required.'},apiHeaders);
     if(role==='superadmin' && actor.role!=='superadmin') return respond(res,403,{error:'Only a Super Administrator can assign that role.'},apiHeaders);
     if(state.users.some(user=>user.email===email)) return respond(res,409,{error:'An account with that email already exists.'},apiHeaders);
+    const accountExpiresAt=body.accountExpiresAt||null;
+    if(accountExpiresAt&&!Number.isFinite(Date.parse(accountExpiresAt))) return respond(res,400,{error:'Invalid account expiry date.'},apiHeaders);
     const temporaryPassword=generatedPassword(); const hash=passwordHash(temporaryPassword);
-    const user={id:crypto.randomUUID(),email,name,role,...hash,mustChangePassword:true,loginHistory:[]};
+    const user={id:crypto.randomUUID(),email,name,role,...hash,mustChangePassword:body.mustChangePassword===undefined?true:!!body.mustChangePassword,accountExpiresAt,loginHistory:[]};
     state.users.push(user); writeAudit(state,actor,'user.created',email,req); save(state);
     return respond(res,201,{user:publicUser(user),temporaryPassword});
   }

@@ -24,6 +24,8 @@
   body.theme-midnight{--bg:#101722;--panel:#182230;--ink:#E7EDF4;--ink-soft:#A6B2C0;--sidebar:#0B111A;--sidebar-soft:#A7B4C4;--border:#2D3948;--accent:#65C7C0;--good:#5AC6A2;--good-bg:#183B36;--warn:#F0B45D;--warn-bg:#44351F;--crit:#F07B72;--crit-bg:#452725;--info:#7CB8EF;--info-bg:#1F354B;--purple:#B59BE8;--purple-bg:#332B49}
   body.theme-midnight .search,body.theme-midnight .search-results,body.theme-midnight input,body.theme-midnight select,body.theme-midnight textarea{background-color:#182230;color:var(--ink);border-color:var(--border)}
   body.theme-midnight .panel,body.theme-midnight .card,body.theme-midnight .modal,body.theme-midnight .table-wrap,body.theme-midnight .stat-card{background-color:var(--panel);color:var(--ink);border-color:var(--border)}
+  .maintenance-notice{position:sticky;top:0;z-index:120;padding:9px 18px;background:#FFF2DE;color:#71430E;border-bottom:1px solid #E8C990;font-weight:600;font-size:12px;text-align:center}
+  .maintenance-notice[hidden]{display:none}
   .app-loader{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(13,22,31,.72);backdrop-filter:blur(8px);transition:opacity .25s ease,visibility .25s ease}
   .app-loader.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
   .app-loader-card{width:min(360px,100%);padding:30px 28px;text-align:center;color:#152638;background:#fff;border:1px solid rgba(255,255,255,.55);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
@@ -372,11 +374,12 @@
   </div>
 </div>
 
+<div class="maintenance-notice" id="maintenance-banner" role="status" hidden>Maintenance mode is enabled. Some services may be temporarily unavailable.</div>
 <div class="login-gate active" id="login-gate">
   <div class="login-card">
     <div class="login-logo" id="login-logo-slot"></div>
     <h1>PID Facilities Management</h1>
-    <p class="login-sub">Sign in to access the live, shared facilities system.</p>
+    <p class="login-sub" id="login-sub">Sign in to access the live, shared facilities system.</p>
     <form onsubmit="signIn(event)">
       <div class="field"><label>Email</label><input id="login-email" type="email" autocomplete="username" required placeholder="you@company.co.za"></div>
       <div class="field"><label>Password</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="Your password"></div>
@@ -384,6 +387,7 @@
       <button class="btn btn-accent login-btn" type="submit">Sign in</button>
     </form>
     <p class="login-note" id="login-note">Your session is protected by the application server. Contact an administrator if you need access.</p>
+    <p class="login-note" id="login-support"></p>
   </div>
 </div>
 
@@ -574,7 +578,7 @@
     <!-- ASSETS -->
     <section class="view" id="view-assets">
       <div class="topbar"><div><h1>Asset Register</h1><div class="meta">Manage, locate and count every maintainable asset across your centres.</div></div><div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">⇩ Export CSV</button><button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">⇧ Import CSV</button><input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)"><button class="btn btn-ghost" onclick="goToView('asset-transfer')">Asset transfer &amp; disposal register</button><button class="btn btn-accent" onclick="openAssetModal()">＋ Register asset</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportAssetsCSV()">⇩ Export CSV</button><button class="btn btn-ghost btn-sm" onclick="triggerImport('import-assets')">⇧ Import CSV</button><input type="file" id="import-assets" accept=".csv" style="display:none;" onchange="importAssetsCSV(event)"><button class="btn btn-ghost" onclick="goToView('asset-transfer')">Asset transfer &amp; disposal register</button><button class="btn btn-accent" id="asset-register-button" onclick="openAssetModal()">＋ Register asset</button>
       </div></div>
       <div class="asset-register-stats"><div class="asset-register-stat"><div class="asset-register-label">Total asset units</div><strong id="asset-total-units">0</strong><small>Across visible centres</small></div><div class="asset-register-stat"><div class="asset-register-label">Asset records</div><strong id="asset-total-records">0</strong><small>Registered inventory lines</small></div><div class="asset-register-stat"><div class="asset-register-label">Operational units</div><strong id="asset-operational-units">0</strong><small>Marked operational</small></div><div class="asset-register-stat"><div class="asset-register-label">Need attention</div><strong id="asset-attention-units">0</strong><small>Faulty, poor or under maintenance</small></div></div>
       <section class="panel asset-register-panel"><div class="asset-register-panel-head"><div><h2>Inventory by discipline</h2><p>Select a category to filter the asset register.</p></div><span class="muted" id="asset-centre-summary">All centres</span></div><div class="asset-register-categories" id="asset-categories"></div></section>
@@ -871,53 +875,24 @@
     <!-- INTERN PLATFORM -->
     <section class="view" id="view-intern">
       <div class="intern-hero">
-        <div class="role-tag">Intern Platform</div>
-        <h1 id="intern-greeting">Welcome</h1>
-        <div class="meta" style="color:#B9C4D0;">Your assigned tasks and onboarding checklist</div>
-        <div class="field" style="max-width:280px;margin-top:14px;">
-          <label style="color:#B9C4D0;">I am</label>
-          <select id="intern-select" onchange="setCurrentIntern(this.value)"></select>
-        </div>
+        <div class="role-tag">Intern Platform</div><h1 id="intern-greeting">Welcome</h1>
+        <div class="meta" id="intern-platform-intro" style="color:#B9C4D0;">Your assigned centre workspace and tasks</div>
+        <div class="field" id="intern-switcher-wrap" style="max-width:280px;margin-top:14px;"><label style="color:#B9C4D0;">Preview intern</label><select id="intern-select" onchange="setCurrentIntern(this.value)"></select></div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Report an asset issue</h2><div class="sub">Spot something wrong on your rounds? Log it here - it becomes a work order automatically, and you can flag the asset itself as needing attention</div></div></div>
-        <div class="row2">
-          <div class="field"><label>Asset</label><input id="ar-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name"></div>
-          <div class="field"><label>Severity</label><select id="ar-severity"><option value="low">Low - cosmetic / minor</option><option value="medium" selected>Medium - needs attention soon</option><option value="high">High - affects operation</option><option value="critical">Critical - unsafe / urgent</option></select></div>
-        </div>
-        <div class="field"><label>What did you notice?</label><textarea id="ar-issue" placeholder="e.g. Leaking pipe near the AHU, strange noise from the generatorâ€¦"></textarea></div>
-        <div class="field">
-          <label>Update this asset's status</label>
-          <select id="ar-status">
-            <option value="">Leave as-is</option>
-            <option value="maintenance">âš  Needs attention (In maintenance)</option>
-            <option value="down">âœ• Not operational (Down)</option>
-          </select>
-        </div>
-        <button class="btn btn-accent" onclick="submitAssetReport()">ðŸ“‹ Submit report</button>
+      <div class="kpi-row" id="intern-home-stats"></div>
+      <div class="panel"><div class="panel-head"><div><h2>My centre asset register</h2><div class="sub" id="intern-assets-subtitle">Assets assigned to your centre</div></div><button class="btn btn-accent" id="intern-add-asset" onclick="openAssetModal()">＋ Add asset</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Tag / ID</th><th>Asset</th><th>Facility / room</th><th>Discipline</th><th>Condition</th><th>Status</th><th>Actions</th></tr></thead><tbody id="intern-assets-body"></tbody></table><div class="empty" id="intern-assets-empty" style="display:none;"><div class="big">No assets at this centre</div>Add the centre's first asset or ask your centre manager to assign your profile to a centre.</div></div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Assets currently flagged</h2><div class="sub">Everything not operational right now, across all centres</div></div></div>
-        <table><thead><tr><th>Tag</th><th>Name</th><th>Centre</th><th>Location</th><th>Status</th></tr></thead>
-        <tbody id="intern-flagged-body"></tbody></table>
-        <div class="empty" id="intern-flagged-empty" style="display:none;"><div class="big">Everything's operational</div>No assets currently flagged.</div>
+      <div class="panel"><div class="panel-head"><div><h2>Report an asset issue</h2><div class="sub">Report a problem from your centre. The request goes to HQ/admin for approval.</div></div></div>
+        <div class="row2"><div class="field"><label>Asset</label><input id="ar-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name"></div><div class="field"><label>Severity</label><select id="ar-severity"><option value="low">Low - cosmetic / minor</option><option value="medium" selected>Medium - needs attention soon</option><option value="high">High - affects operation</option><option value="critical">Critical - unsafe / urgent</option></select></div></div>
+        <div class="field"><label>What did you notice?</label><textarea id="ar-issue" placeholder="Describe the problem and where you found it"></textarea></div>
+        <div class="field"><label>Update this asset's status</label><select id="ar-status"><option value="">Leave as-is</option><option value="maintenance">Needs attention (In maintenance)</option><option value="down">Not operational (Down)</option></select></div>
+        <button class="btn btn-accent" onclick="submitAssetReport()">Submit report for approval</button>
       </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>My reported issues</h2><div class="sub">Everything you've flagged, and the work order it created</div></div></div>
-        <table><thead><tr><th>Reported</th><th>Asset</th><th>Severity</th><th>Issue</th><th>Linked WO#</th><th>Status</th></tr></thead>
-        <tbody id="intern-reports-body"></tbody></table>
-        <div class="empty" id="intern-reports-empty" style="display:none;"><div class="big">No reports yet</div>Use the form above to flag your first asset issue.</div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>My assigned work orders</h2><div class="sub">Tasks allocated to you</div></div></div>
-        <table><thead><tr><th>WO#</th><th>Title</th><th>Asset</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead>
-        <tbody id="intern-wo-body"></tbody></table>
-        <div class="empty" id="intern-wo-empty" style="display:none;"><div class="big">No tasks assigned</div>Nothing allocated to you yet - check with your supervisor.</div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h2>Onboarding checklist</h2></div></div>
-        <div class="checklist" id="intern-checklist"></div>
-      </div>
+      <div class="panel"><div class="panel-head"><div><h2>Assets currently flagged</h2><div class="sub">Non-operational assets at your centre</div></div></div><table><thead><tr><th>Tag</th><th>Name</th><th>Centre</th><th>Location</th><th>Status</th></tr></thead><tbody id="intern-flagged-body"></tbody></table><div class="empty" id="intern-flagged-empty" style="display:none;"><div class="big">Everything's operational</div>No assets currently flagged.</div></div>
+      <div class="panel"><div class="panel-head"><div><h2>My reported issues</h2><div class="sub">Track your submitted reports and approval status</div></div></div><table><thead><tr><th>Reported</th><th>Asset</th><th>Severity</th><th>Issue</th><th>Linked WO#</th><th>Status</th></tr></thead><tbody id="intern-reports-body"></tbody></table><div class="empty" id="intern-reports-empty" style="display:none;"><div class="big">No reports yet</div>Use the form above to flag your first asset issue.</div></div>
+      <div class="panel"><div class="panel-head"><div><h2>My assigned work orders</h2><div class="sub">Tasks allocated to you</div></div></div><table><thead><tr><th>WO#</th><th>Title</th><th>Asset</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead><tbody id="intern-wo-body"></tbody></table><div class="empty" id="intern-wo-empty" style="display:none;"><div class="big">No tasks assigned</div>Nothing allocated to you yet - check with your supervisor.</div></div>
+      <div class="panel"><div class="panel-head"><div><h2>Onboarding checklist</h2></div></div><div class="checklist" id="intern-checklist"></div></div>
     </section>
 
   </main>
@@ -1025,6 +1000,12 @@ function normalizeData(){
   Object.keys(defaultSettings.permissionMatrix).forEach(role=>{
     DATA.adminSettings.permissionMatrix[role]={...defaultSettings.permissionMatrix[role],...(DATA.adminSettings.permissionMatrix[role]||{})};
   });
+  if(DATA.adminSettings.internAssetScopeAccessVersion!==1){
+    DATA.adminSettings.permissionMatrix.intern.Assets.create=true;
+    DATA.adminSettings.permissionMatrix.intern.Assets.edit=true;
+    DATA.adminSettings.internAssetScopeAccessVersion=1;
+    persist();
+  }
   ADMIN_SETTING_GROUPS.forEach(group=>group.fields.forEach(([key,label,type,value])=>{
     if(type!=='file' && DATA.adminSettings[key]===undefined) DATA.adminSettings[key]=type==='checkbox'?value==='true':value;
   }));
@@ -1718,38 +1699,114 @@ function renderCentres(){
 }
 
 /* ---------- ASSETS ---------- */
+function adminSettingList(key,fallback=[]){
+  const raw=DATA&&DATA.adminSettings&&DATA.adminSettings[key];
+  const values=String(raw||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean);
+  return values.length?values:fallback;
+}
+function configuredAssetDisciplines(){const configured=adminSettingList('assetCategories',(ASSET_DISCIPLINES||[]).map(item=>item.name)),existing=(DATA&&DATA.assets||[]).map(asset=>asset.discipline||asset.category).filter(Boolean);return [...new Set([...configured,...existing])];}
+function configuredWorkOrderCategories(){return adminSettingList('workOrderCategories',['Electrical','Plumbing','HVAC','Civil','Safety','General']);}
+function workOrderPriorityOptions(selected){
+  const values={emergency:'critical',urgent:'critical',critical:'critical',high:'high',medium:'medium',low:'low'};
+  return adminSettingList('workOrderPriorities',['Emergency','High','Medium','Low']).map(label=>{
+    const value=values[label.trim().toLowerCase()]||label.trim().toLowerCase();
+    return '<option value="'+escapeAttr(value)+'" '+(value===selected?'selected':'')+'>'+escapeHtml(label)+'</option>';
+  }).join('');
+}
+function requireAssetAdmin(){if(isAssetAdmin())return true;showToast('Only Admin can remove assets.');return false;}
 function isAssetAdmin(){ return ['admin','superadmin'].includes(state.role); }
-function requireAssetAdmin(){ if(!isAssetAdmin()){ showToast('Asset Register is read-only. Only Admin can edit assets in Admin Settings.'); return false; } return true; }
-function assetFormMarkup(prefix,a={}){
- const disciplines=['Electrical','Mechanical','Civil','Plumbing','General items'],discipline=a.discipline||(disciplines.includes(a.category)?a.category:'General items'),status=a.status||'operational',condition=a.condition||'Good';
- const statuses=[['operational','Operational'],['maintenance','Under maintenance'],['down','Faulty'],['decommissioned','Decommissioned']];
- return '<div class="row2"><div class="field"><label>Asset description *</label><input id="'+prefix+'-name" value="'+escapeAttr(a.name||'')+'" required></div><div class="field"><label>Discipline *</label><select id="'+prefix+'-discipline">'+disciplines.map(x=>'<option '+(x===discipline?'selected':'')+'>'+x+'</option>').join('')+'</select></div></div>'+
- '<div class="row2"><div class="field"><label>Centre / campus *</label><select id="'+prefix+'-centre">'+centreOptions(a.centreId)+'</select></div><div class="field"><label>Quantity *</label><input id="'+prefix+'-quantity" type="number" min="1" step="1" value="'+Math.max(1,Number(a.quantity)||1)+'" required></div></div>'+
+function currentInternProfile(){
+  const user=currentDirectoryUser();
+  return state.role==='intern'&&user&&user.role==='intern'?user:null;
+}
+function assetPermissionAllowed(action){
+  const settings=DATA&&DATA.adminSettings||{},matrix=settings.permissionMatrix||{},role=matrix[state.role]||{};
+  return !settings.permissionMatrixEnforced||!!(role.Assets&&role.Assets[action]===true);
+}
+function canManageAsset(asset,action){
+  if(isAssetAdmin()) return true;
+  if(state.role!=='intern'||!assetPermissionAllowed(action)||(asset&&asset.status==='decommissioned')) return false;
+  const intern=currentInternProfile();
+  return !!(intern&&intern.centreId&&(!asset||asset.centreId===intern.centreId));
+}
+function requireAssetPermission(action,centreId){
+  if(isAssetAdmin()) return true;
+  const intern=currentInternProfile();
+  if(intern&&intern.centreId===centreId&&assetPermissionAllowed(action)) return true;
+  showToast(state.role==='intern'?'Asset changes are limited to your assigned centre and permissions.':'You do not have permission to change assets.');
+  return false;
+}
+function assetsForCurrentRole(){
+  const all=DATA.assets||[];
+  if(state.role==='intern'){const intern=currentInternProfile();return intern&&intern.centreId?all.filter(asset=>asset.centreId===intern.centreId):[];}
+  return all.filter(asset=>inFilter(asset.centreId));
+}
+function assetFormMarkup(prefix,a={},lockedCentreId=''){
+ const disciplines=configuredAssetDisciplines(),discipline=a.discipline||(disciplines.includes(a.category)?a.category:(disciplines[0]||'General items')),status=a.status||'operational',condition=a.condition||'Good';
+ const statuses=[['operational','Operational'],['maintenance','Under maintenance'],['down','Faulty'],['decommissioned','Decommissioned']].filter(([value])=>!currentInternProfile()||value!=='decommissioned'),conditions=adminSettingList('assetConditions',['New','Good','Fair','Poor','Unserviceable']);if(condition&&!conditions.includes(condition))conditions.unshift(condition);
+ return '<div class="row2"><div class="field"><label>Asset description *</label><input id="'+prefix+'-name" value="'+escapeAttr(a.name||'')+'" required></div><div class="field"><label>Discipline *</label><select id="'+prefix+'-discipline">'+disciplines.map(x=>'<option '+(x===discipline?'selected':'')+'>'+escapeHtml(x)+'</option>').join('')+'</select></div></div>'+
+ '<div class="row2"><div class="field"><label>Centre / campus *</label><select id="'+prefix+'-centre" '+(lockedCentreId?'disabled':'')+'>'+centreOptions(lockedCentreId||a.centreId)+'</select></div><div class="field"><label>Quantity *</label><input id="'+prefix+'-quantity" type="number" min="1" step="1" value="'+Math.max(1,Number(a.quantity)||1)+'" required></div></div>'+
  '<div class="row2"><div class="field"><label>Building / block</label><input id="'+prefix+'-building" value="'+escapeAttr(a.building||'')+'"></div><div class="field"><label>Floor / room / area</label><input id="'+prefix+'-location" value="'+escapeAttr(a.location||'')+'"></div></div>'+
- '<div class="row2"><div class="field"><label>Condition</label><select id="'+prefix+'-condition">'+['Good','Fair','Poor','Damaged'].map(x=>'<option '+(x===condition?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="field"><label>Operational status</label><select id="'+prefix+'-status">'+statuses.map(([v,l])=>'<option value="'+v+'" '+(v===status?'selected':'')+'>'+l+'</option>').join('')+'</select></div></div>'+
+ '<div class="row2"><div class="field"><label>Condition</label><select id="'+prefix+'-condition">'+conditions.map(x=>'<option '+(x===condition?'selected':'')+'>'+escapeHtml(x)+'</option>').join('')+'</select></div><div class="field"><label>Operational status</label><select id="'+prefix+'-status">'+statuses.map(([v,l])=>'<option value="'+v+'" '+(v===status?'selected':'')+'>'+l+'</option>').join('')+'</select></div></div>'+
  '<div class="row2"><div class="field"><label>Asset tag / serial number</label><input id="'+prefix+'-serial" value="'+escapeAttr(a.serialNumber||a.tag||'')+'" placeholder="Optional for bulk items"></div><div class="field"><label>Date recorded</label><input id="'+prefix+'-recorded" type="date" value="'+escapeAttr(a.recordedDate||a.purchaseDate||'')+'"></div></div>'+
  '<div class="field"><label>Assigned worker</label><select id="'+prefix+'-worker"><option value="">- Unassigned -</option>'+userOptions(a.assignedWorkerId)+'</select></div><div class="field"><label>Notes</label><input id="'+prefix+'-notes" value="'+escapeAttr(a.notes||'')+'"></div>';
 }
-function editAsset(id){if(!requireAssetAdmin())return;const a=DATA.assets.find(x=>x.id===id);if(!a)return;openModal('<h3>Edit asset</h3><div class="modal-sub">Update the shared asset record</div>'+assetFormMarkup('e',a)+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="updateAsset(\''+id+'\')">Save changes</button></div>');}
+function editAsset(id){
+ const asset=DATA.assets.find(item=>item.id===id);if(!asset||!requireAssetPermission('edit',asset.centreId))return;
+ const intern=currentInternProfile(),lockedCentre=intern?intern.centreId:'';
+ openModal('<h3>Edit asset</h3><div class="modal-sub">Update the asset record for '+escapeHtml((centreById(asset.centreId)||{}).name||'this centre')+'</div>'+assetFormMarkup('e',asset,lockedCentre)+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="updateAsset(\''+id+'\')">Save changes</button></div>');
+}
+
 function escapeAttr(v){return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function updateAsset(id){if(!requireAssetAdmin())return;const a=DATA.assets.find(x=>x.id===id);if(!a)return;const serial=document.getElementById('e-serial').value.trim(),name=document.getElementById('e-name').value.trim();if(!name){showToast('Asset description is required');return;}if(serial&&DATA.assets.some(x=>x.id!==id&&String(x.serialNumber||x.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG is already registered');return;}const discipline=document.getElementById('e-discipline').value,recorded=document.getElementById('e-recorded').value||'';Object.assign(a,{name,serialNumber:serial,tag:serial||'',discipline,category:discipline,centreId:document.getElementById('e-centre').value,quantity:Math.max(1,Math.floor(Number(document.getElementById('e-quantity').value)||1)),building:document.getElementById('e-building').value.trim(),location:document.getElementById('e-location').value.trim()||'-',condition:document.getElementById('e-condition').value,status:document.getElementById('e-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('e-notes').value.trim(),assignedWorkerId:document.getElementById('e-worker').value||''});persist();closeModal();renderAll();showToast('Asset updated');}
-function openAssetModal(){if(!requireAssetAdmin())return;openModal('<h3>Register asset</h3><div class="modal-sub">Add a maintainable asset to the shared register</div>'+assetFormMarkup('f')+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAsset()">Register asset</button></div>');}
-function saveAsset(){if(!requireAssetAdmin())return;const name=document.getElementById('f-name').value.trim(),serial=document.getElementById('f-serial').value.trim();if(!name){showToast('Asset description is required');return;}if(serial&&DATA.assets.some(a=>String(a.serialNumber||a.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG already exists');return;}const discipline=document.getElementById('f-discipline').value,recorded=document.getElementById('f-recorded').value||'';DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial||'',category:discipline,discipline,centreId:document.getElementById('f-centre').value,quantity:Math.max(1,Math.floor(Number(document.getElementById('f-quantity').value)||1)),building:document.getElementById('f-building').value.trim(),location:document.getElementById('f-location').value.trim()||'-',condition:document.getElementById('f-condition').value,status:document.getElementById('f-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('f-notes').value.trim(),assignedWorkerId:document.getElementById('f-worker').value||''});persist();closeModal();renderAll();showToast('Asset registered');}
+function updateAsset(id){
+ const asset=DATA.assets.find(item=>item.id===id);if(!asset)return;
+ const centreId=document.getElementById('e-centre').value;
+ if(!requireAssetPermission('edit',asset.centreId)||(!isAssetAdmin()&&centreId!==asset.centreId))return;
+ const serial=document.getElementById('e-serial').value.trim(),name=document.getElementById('e-name').value.trim();
+ if(!name){showToast('Asset description is required');return;}
+ if(serial&&DATA.assets.some(item=>item.id!==id&&String(item.serialNumber||item.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG is already registered');return;}
+ const discipline=document.getElementById('e-discipline').value,recorded=document.getElementById('e-recorded').value||'';
+ Object.assign(asset,{name,serialNumber:serial,tag:serial||'',discipline,category:discipline,centreId,quantity:Math.max(1,Math.floor(Number(document.getElementById('e-quantity').value)||1)),building:document.getElementById('e-building').value.trim(),location:document.getElementById('e-location').value.trim()||'-',condition:document.getElementById('e-condition').value,status:document.getElementById('e-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('e-notes').value.trim(),assignedWorkerId:document.getElementById('e-worker').value||'',updatedBy:currentInternProfile()?.name||msAuth.user?.name||'Administrator',updatedAt:new Date().toISOString()});
+ persist();closeModal();renderAll();showToast('Asset updated');
+}
+
+function openAssetModal(){
+ const intern=currentInternProfile(),centreId=intern&&intern.centreId;
+ if(!isAssetAdmin()&&(!centreId||!requireAssetPermission('create',centreId)))return;
+ if(intern&&!centreById(centreId)){showToast('Ask your administrator to assign a valid centre to your intern profile.');return;}
+ openModal('<h3>Register asset</h3><div class="modal-sub">Add an asset to '+escapeHtml(intern?(centreById(centreId)||{}).name:'the shared register')+'</div>'+assetFormMarkup('f',{},intern?centreId:'')+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAsset()">Register asset</button></div>');
+}
+
+function saveAsset(){
+ if(DATA.adminSettings.maintenanceMode&&!['admin','superadmin'].includes(state.role)){showToast('Asset updates are paused during maintenance.');return;}
+ const centreId=document.getElementById('f-centre').value;
+ if(!requireAssetPermission('create',centreId))return;
+ const name=document.getElementById('f-name').value.trim(),serial=document.getElementById('f-serial').value.trim();
+ if(!name){showToast('Asset description is required');return;}
+ if(!centreId||!centreById(centreId)){showToast('Select a valid centre');return;}
+ if(serial&&DATA.assets.some(asset=>String(asset.serialNumber||asset.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG already exists');return;}
+ const discipline=document.getElementById('f-discipline').value,recorded=document.getElementById('f-recorded').value||'',intern=currentInternProfile();
+ DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial||'',category:discipline,discipline,centreId,quantity:Math.max(1,Math.floor(Number(document.getElementById('f-quantity').value)||1)),building:document.getElementById('f-building').value.trim(),location:document.getElementById('f-location').value.trim()||'-',condition:document.getElementById('f-condition').value,status:document.getElementById('f-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('f-notes').value.trim(),assignedWorkerId:document.getElementById('f-worker').value||'',createdBy:intern?.id||msAuth.user?.id||'',createdAt:new Date().toISOString()});
+ persist();closeModal();renderAll();showToast('Asset registered');
+}
+
 function deleteAsset(id){ if(!requireAssetAdmin()) return; DATA.assets = DATA.assets.filter(a=>a.id!==id); persist(); renderAll(); showToast('Asset removed'); }
 function exportAssetsCSV(){const cols=[{key:'tag',label:'Tag / Serial Number',get:a=>a.serialNumber||a.tag||a.id},{key:'name',label:'Asset description'},{key:'centre',label:'Centre',get:a=>(centreById(a.centreId)||{}).name||''},{key:'discipline',label:'Discipline',get:a=>a.discipline||a.category||''},{key:'quantity',label:'Quantity',get:a=>Math.max(1,Number(a.quantity)||1)},{key:'building',label:'Building / block'},{key:'location',label:'Floor / Room / Area'},{key:'condition',label:'Condition'},{key:'status',label:'Operational status',get:a=>assetStatusLabel(a.status)},{key:'worker',label:'Assigned Worker',get:a=>(userById(a.assignedWorkerId)||{}).name||''},{key:'purchaseDate',label:'Date recorded'},{key:'notes',label:'Notes'}];downloadText('pid-fm-asset-register.csv',toCSV(cols,visibleAssetRecords()));}
-function importAssetsCSV(event){readImportedFile(event,text=>{const rows=parseCSV(text);let count=0;rows.forEach(r=>{const name=r['Asset description']||r.Name||r.name;if(!name)return;const centre=DATA.centres.find(c=>c.name===(r.Centre||r.centre)),worker=DATA.users.find(u=>u.name===(r['Assigned Worker']||r.assignedWorker));const raw=String(r['Operational status']||r.Status||r.status||'operational').toLowerCase(),status=raw.includes('decommission')?'decommissioned':raw.includes('maint')?'maintenance':raw.includes('fault')||raw==='down'?'down':'operational',discipline=r.Discipline||r.discipline||r.Category||r.category||'General items',serial=r['Tag / Serial Number']||r.tag||r.serialNumber||'';DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial,category:discipline,discipline,centreId:centre?centre.id:'',quantity:Math.max(1,Math.floor(Number(r.Quantity||r.quantity)||1)),building:r['Building / block']||r.building||'',location:r['Floor / Room / Area']||r.Location||r.location||'-',condition:r.Condition||r.condition||'Good',status,value:Number(r.Value||r.value)||0,purchaseDate:r['Date recorded']||r['Purchase Date']||r.purchaseDate||'',recordedDate:r['Date recorded']||r.purchaseDate||'',notes:r.Notes||r.notes||'',assignedWorkerId:worker?worker.id:''});count++;});persist();renderAll();showToast(count+' assets imported');});}
+function importAssetsCSV(event){if(!isAssetAdmin()){showToast('Only Admin can import assets in bulk.');event.target.value='';return;}if(DATA.adminSettings.maintenanceMode){showToast('Asset imports are paused during maintenance.');return;}readImportedFile(event,text=>{const rows=parseCSV(text);let count=0;rows.forEach(r=>{const name=r['Asset description']||r.Name||r.name;if(!name)return;const centre=DATA.centres.find(c=>c.name===(r.Centre||r.centre)),worker=DATA.users.find(u=>u.name===(r['Assigned Worker']||r.assignedWorker));const raw=String(r['Operational status']||r.Status||r.status||'operational').toLowerCase(),status=raw.includes('decommission')?'decommissioned':raw.includes('maint')?'maintenance':raw.includes('fault')||raw==='down'?'down':'operational',discipline=r.Discipline||r.discipline||r.Category||r.category||'General items',serial=r['Tag / Serial Number']||r.tag||r.serialNumber||'';DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial,category:discipline,discipline,centreId:centre?centre.id:'',quantity:Math.max(1,Math.floor(Number(r.Quantity||r.quantity)||1)),building:r['Building / block']||r.building||'',location:r['Floor / Room / Area']||r.Location||r.location||'-',condition:r.Condition||r.condition||'Good',status,value:Number(r.Value||r.value)||0,purchaseDate:r['Date recorded']||r['Purchase Date']||r.purchaseDate||'',recordedDate:r['Date recorded']||r.purchaseDate||'',notes:r.Notes||r.notes||'',assignedWorkerId:worker?worker.id:''});count++;});persist();renderAll();showToast(count+' assets imported');});}
 const ASSET_DISCIPLINES=[{name:'Electrical',icon:'⚡',desc:'Plugs, lights, switches, DBs'},{name:'Mechanical',icon:'❄',desc:'Air conditioners, pumps, fans'},{name:'Civil',icon:'🏢',desc:'Doors, roofs, floors, walls'},{name:'Plumbing',icon:'🚰',desc:'Taps, toilets, pipes, valves'},{name:'General items',icon:'📷',desc:'Cameras, alarms, furniture'}];let assetRegisterDiscipline='';
 function assetStatusLabel(s){return ({operational:'Operational',maintenance:'Under maintenance',down:'Faulty',decommissioned:'Decommissioned'})[s]||s||'Operational';}
 function assetConditionClass(c){return ({Good:'asset-condition-good',Fair:'asset-condition-fair',Poor:'asset-condition-poor',Damaged:'asset-condition-damaged'})[c]||'asset-condition-fair';}
 function assetRecordUnits(a){return Math.max(1,Math.floor(Number(a.quantity)||1));}
-function visibleAssetRecords(){const centre=document.getElementById('asset-centre-filter')?.value||'',q=(document.getElementById('asset-search')?.value||'').trim().toLowerCase(),discipline=document.getElementById('asset-discipline-filter')?.value||assetRegisterDiscipline,status=document.getElementById('asset-status-filter')?.value||'';return DATA.assets.filter(a=>{const d=a.discipline||a.category||'General items',text=[a.id,a.serialNumber,a.tag,a.name,a.category,d,a.building,a.location,a.notes,(centreById(a.centreId)||{}).name].join(' ').toLowerCase();return inFilter(a.centreId)&&(!centre||a.centreId===centre)&&(!q||text.includes(q))&&(!discipline||d===discipline)&&(!status||a.status===status);});}
+function visibleAssetRecords(){const centre=document.getElementById('asset-centre-filter')?.value||'',q=(document.getElementById('asset-search')?.value||'').trim().toLowerCase(),discipline=document.getElementById('asset-discipline-filter')?.value||assetRegisterDiscipline,status=document.getElementById('asset-status-filter')?.value||'',scope=new Set(assetsForCurrentRole().map(a=>a.id));return DATA.assets.filter(a=>{const d=a.discipline||a.category||'General items',text=[a.id,a.serialNumber,a.tag,a.name,a.category,d,a.building,a.location,a.notes,(centreById(a.centreId)||{}).name].join(' ').toLowerCase();return scope.has(a.id)&&(!centre||a.centreId===centre)&&(!q||text.includes(q))&&(!discipline||d===discipline)&&(!status||a.status===status);});}
 function renderAssets(){
- const body=document.getElementById('assets-body');if(!body)return;const allowed=DATA.assets.filter(a=>inFilter(a.centreId)),filter=document.getElementById('asset-centre-filter'),old=filter?.value||'',centres=DATA.centres.filter(c=>allowed.some(a=>a.centreId===c.id)).sort((a,b)=>a.name.localeCompare(b.name));if(filter){filter.innerHTML='<option value="">All centres</option>'+centres.map(c=>'<option value="'+escapeAttr(c.id)+'">'+escapeHtml(c.name)+'</option>').join('');if(centres.some(c=>c.id===old))filter.value=old;}
+ const body=document.getElementById('assets-body');if(!body)return;const disciplineOptions=configuredAssetDisciplines(),disciplineFilter=document.getElementById('asset-discipline-filter');if(disciplineFilter&&!disciplineOptions.includes(disciplineFilter.value))disciplineFilter.value='';if(assetRegisterDiscipline&&!disciplineOptions.includes(assetRegisterDiscipline))assetRegisterDiscipline='';const allowed=assetsForCurrentRole(),registerButton=document.getElementById('asset-register-button');if(registerButton)registerButton.style.display=canManageAsset(null,'create')?'':'none';const filter=document.getElementById('asset-centre-filter'),old=filter?.value||'',centres=DATA.centres.filter(c=>allowed.some(a=>a.centreId===c.id)).sort((a,b)=>a.name.localeCompare(b.name));if(filter){filter.innerHTML='<option value="">All centres</option>'+centres.map(c=>'<option value="'+escapeAttr(c.id)+'">'+escapeHtml(c.name)+'</option>').join('');if(centres.some(c=>c.id===old))filter.value=old;}
  const centre=filter?.value||'',q=(document.getElementById('asset-search')?.value||'').trim().toLowerCase(),df=document.getElementById('asset-discipline-filter'),discipline=df?.value||assetRegisterDiscipline,status=document.getElementById('asset-status-filter')?.value||'',centreRecords=allowed.filter(a=>!centre||a.centreId===centre),records=centreRecords.filter(a=>{const d=a.discipline||a.category||'General items',text=[a.id,a.serialNumber,a.tag,a.name,a.category,d,a.building,a.location,a.notes,(centreById(a.centreId)||{}).name].join(' ').toLowerCase();return(!q||text.includes(q))&&(!discipline||d===discipline)&&(!status||a.status===status);}),total=items=>items.reduce((n,a)=>n+assetRecordUnits(a),0);
  document.getElementById('nav-assets-count').textContent=allowed.length;document.getElementById('asset-total-units').textContent=total(allowed).toLocaleString();document.getElementById('asset-total-records').textContent=allowed.length.toLocaleString();document.getElementById('asset-operational-units').textContent=total(allowed.filter(a=>a.status==='operational')).toLocaleString();document.getElementById('asset-attention-units').textContent=total(allowed.filter(a=>['down','maintenance'].includes(a.status)||['Poor','Damaged'].includes(a.condition))).toLocaleString();document.getElementById('asset-centre-summary').textContent=centres.find(c=>c.id===centre)?.name||'All centres';
- document.getElementById('asset-categories').innerHTML=ASSET_DISCIPLINES.map(d=>{const rows=centreRecords.filter(a=>(a.discipline||a.category||'General items')===d.name);return'<button class="asset-register-category '+(discipline===d.name?'selected':'')+'" type="button" data-asset-discipline="'+d.name+'"><div class="asset-register-category-icon">'+d.icon+'</div><div class="asset-register-category-name">'+d.name+'</div><div class="asset-register-category-count">'+total(rows).toLocaleString()+'</div><div class="asset-register-category-caption">'+rows.length+' inventory records</div><div class="asset-register-category-caption">'+d.desc+'</div></button>';}).join('');
+ const categories=configuredAssetDisciplines();
+ document.getElementById('asset-categories').innerHTML=categories.map(name=>{const d=ASSET_DISCIPLINES.find(item=>item.name===name)||{name,icon:'◈',desc:'Assets in this category'},rows=centreRecords.filter(a=>(a.discipline||a.category||'General items')===name);return'<button class="asset-register-category '+(discipline===name?'selected':'')+'" type="button" data-asset-discipline="'+escapeAttr(name)+'"><div class="asset-register-category-icon">'+d.icon+'</div><div class="asset-register-category-name">'+escapeHtml(name)+'</div><div class="asset-register-category-count">'+total(rows).toLocaleString()+'</div><div class="asset-register-category-caption">'+rows.length+' inventory records</div><div class="asset-register-category-caption">'+d.desc+'</div></button>';}).join('');
+ if(df){const previous=df.value;df.innerHTML='<option value="">All disciplines</option>'+categories.map(name=>'<option value="'+escapeAttr(name)+'">'+escapeHtml(name)+'</option>').join('');df.value=categories.includes(previous)?previous:'';}
  document.querySelectorAll('[data-asset-discipline]').forEach(b=>b.onclick=()=>{assetRegisterDiscipline=assetRegisterDiscipline===b.dataset.assetDiscipline?'':b.dataset.assetDiscipline;if(df)df.value='';renderAssets();});
- body.innerHTML=records.map(a=>{const c=centreById(a.centreId),w=userById(a.assignedWorkerId),condition=a.condition||'Good';return'<tr><td><div class="asset-register-main">'+escapeHtml(a.name)+'</div><div class="asset-register-sub">'+escapeHtml(a.serialNumber||a.tag||a.id)+(a.notes?' · '+escapeHtml(a.notes):'')+'</div></td><td><div>'+escapeHtml(c?.name||'-')+'</div><div class="asset-register-sub">'+escapeHtml([a.building,a.location].filter(Boolean).join(' · ')||'Location not specified')+'</div></td><td>'+escapeHtml(a.discipline||a.category||'General items')+'</td><td><b>'+assetRecordUnits(a).toLocaleString()+'</b></td><td><span class="asset-condition '+assetConditionClass(condition)+'">'+escapeHtml(condition)+'</span></td><td>'+pill(a.status||'operational')+'</td><td>'+escapeHtml(w?.name||'Unassigned')+'</td><td style="font-family:var(--font-mono);">'+fmtMoney(a.value)+'</td><td>'+(isAssetAdmin()?'<button class="btn btn-ghost btn-sm" onclick="editAsset(\''+a.id+'\')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteAsset(\''+a.id+'\')">Remove</button>':'<span class="pill neutral">View only</span>')+'</td></tr>';}).join('');
+ body.innerHTML=records.map(a=>{const c=centreById(a.centreId),w=userById(a.assignedWorkerId),condition=a.condition||'Good';return'<tr><td><div class="asset-register-main">'+escapeHtml(a.name)+'</div><div class="asset-register-sub">'+escapeHtml(a.serialNumber||a.tag||a.id)+(a.notes?' · '+escapeHtml(a.notes):'')+'</div></td><td><div>'+escapeHtml(c?.name||'-')+'</div><div class="asset-register-sub">'+escapeHtml([a.building,a.location].filter(Boolean).join(' · ')||'Location not specified')+'</div></td><td>'+escapeHtml(a.discipline||a.category||'General items')+'</td><td><b>'+assetRecordUnits(a).toLocaleString()+'</b></td><td><span class="asset-condition '+assetConditionClass(condition)+'">'+escapeHtml(condition)+'</span></td><td>'+pill(a.status||'operational')+'</td><td>'+escapeHtml(w?.name||'Unassigned')+'</td><td style="font-family:var(--font-mono);">'+fmtMoney(a.value)+'</td><td>'+(canManageAsset(a,'edit')?'<button class="btn btn-ghost btn-sm" onclick="editAsset(\''+a.id+'\')">Edit</button>':'<span class="pill neutral">View only</span>')+(isAssetAdmin()?' <button class="btn btn-danger btn-sm" onclick="deleteAsset(\''+a.id+'\')">Remove</button>':'')+'</td></tr>';}).join('');
  document.getElementById('assets-empty').style.display=records.length?'none':'block';
 }
 function clearAssetFilters(){['asset-search','asset-centre-filter','asset-discipline-filter','asset-status-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});assetRegisterDiscipline='';renderAssets();}
@@ -1903,19 +1960,25 @@ function assetByEntry(value){
 }
 function renderAssetSuggestions(){
   const list=document.getElementById('asset-options-list');if(!list)return;
-  list.innerHTML=(DATA.assets||[]).map(asset=>'<option value="'+escapeAttr(assetEntryLabel(asset))+'"></option>').join('');
+  const assets=state.role==='intern'?assetsForCurrentRole():(DATA.assets||[]);
+  list.innerHTML=assets.map(asset=>'<option value="'+escapeAttr(assetEntryLabel(asset))+'"></option>').join('');
 }
 function assetOptions(selectedId){
   return `<option value="">- None -</option>` + DATA.assets.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.name} (${a.id})</option>`).join('');
 }
 function currentDirectoryUser(){
   const email=String(msAuth.user?.email||msAuth.account?.email||'').trim().toLowerCase();
-  return (DATA.users||[]).find(user=>user.id===state.myUserId)||(email?(DATA.users||[]).find(user=>String(user.email||'').trim().toLowerCase()===email):null)||null;
+  if(email){const match=(DATA.users||[]).find(user=>String(user.email||'').trim().toLowerCase()===email);if(match)return match;if(msAuth.user)return null;}
+  return (DATA.users||[]).find(user=>user.id===state.myUserId)||null;
 }
 function isWorkOrderApprover(){return ['admin','superadmin','hq'].includes(String(state.role||'').toLowerCase());}
 function renderWorkOrderCreatePage(){
   const facility=document.getElementById('page-wo-facility');
   if(!facility)return;
+  const trade=document.getElementById('page-wo-trade'),tradeValue=trade?.value||'';
+  if(trade){const categories=configuredWorkOrderCategories();trade.innerHTML=categories.map(category=>'<option value="'+escapeAttr(category)+'">'+escapeHtml(category)+'</option>').join('');if(categories.includes(tradeValue))trade.value=tradeValue;}
+  const prioritySelect=document.getElementById('page-wo-priority'),priorityValue=prioritySelect?.value||'';
+  if(prioritySelect){const priorities=adminSettingList('workOrderPriorities',['Emergency','High','Medium','Low']);prioritySelect.innerHTML=priorities.map(value=>'<option value="'+escapeAttr(value)+'">'+escapeHtml(value)+'</option>').join('');if(priorities.includes(priorityValue))prioritySelect.value=priorityValue;else prioritySelect.value=priorities.find(value=>/medium/i.test(value))||priorities[0]||'';}
   const existing=DATA.centres||[];
   facility.innerHTML=existing.length
     ? '<option value="" disabled selected>Select a campus or facility</option>'+existing.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('')+'<option value="__other">Other facility</option>'
@@ -1933,6 +1996,7 @@ function renderWorkOrderCreatePage(){
   }
 }
 async function saveWorkOrderPage(){
+  if(DATA.adminSettings.maintenanceMode&& !['admin','superadmin'].includes(state.role)){showToast('Work-order submissions are paused during maintenance.');return;}
   const title=document.getElementById('page-wo-title').value.trim();
   const description=document.getElementById('page-wo-description').value.trim();
   const facilityValue=document.getElementById('page-wo-facility').value;
@@ -1949,9 +2013,9 @@ async function saveWorkOrderPage(){
   const assetText=document.getElementById('page-wo-asset').value.trim();
   const asset=assetByEntry(assetText);
   const selectedPriority=document.getElementById('page-wo-priority').value;
-  const priority=selectedPriority==='Urgent'?'critical':selectedPriority.toLowerCase();
+  const priority=['Urgent','Emergency'].includes(selectedPriority)?'critical':selectedPriority.toLowerCase();
   const record={
-    id:nextId('WO','wo'),status:'pending_approval',createdDate:new Date().toISOString().slice(0,10),gpsCheckin:null,
+    id:nextId('WO','wo'),status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',approvedOn:DATA.adminSettings.workOrderApproval===false?new Date().toISOString().slice(0,10):'',createdDate:new Date().toISOString().slice(0,10),gpsCheckin:null,
     title,assetId:asset?asset.id:'',assetReference:asset?asset.tag||asset.assetTag||asset.id:assetText,
     centreId:centre?centre.id:'',facilityName:centre?centre.name:facilityName,
     type:'corrective',trade:document.getElementById('page-wo-trade').value,priority,
@@ -1966,7 +2030,8 @@ async function saveWorkOrderPage(){
   renderWorkOrderCreatePage();
   renderAll();
   goToView('workorders');
-  showToast('Submitted to HQ/admin for approval');
+  showToast(DATA.adminSettings.workOrderApproval===false?'Work order created and assigned':'Submitted to HQ/admin for approval');
+  if(DATA.adminSettings.workOrderApproval===false)void notifyAssignee(record.id);
 }
 function openWOModal(editId){
   const editing = editId ? DATA.workOrders.find(w=>w.id===editId) : null;
@@ -1983,11 +2048,7 @@ function openWOModal(editId){
         <option value="corrective" ${editing&&editing.type==='corrective'?'selected':''}>Corrective</option>
         <option value="preventive" ${editing&&editing.type==='preventive'?'selected':''}>Preventive</option>
         <option value="project" ${editing&&editing.type==='project'?'selected':''}>Project-linked</option></select></div>
-      <div class="field"><label>Priority</label><select id="f-priority">
-        <option value="low" ${editing&&editing.priority==='low'?'selected':''}>Low</option>
-        <option value="medium" ${!editing||editing.priority==='medium'?'selected':''}>Medium</option>
-        <option value="high" ${editing&&editing.priority==='high'?'selected':''}>High</option>
-        <option value="critical" ${editing&&editing.priority==='critical'?'selected':''}>Critical</option></select></div>
+      <div class="field"><label>Priority</label><select id="f-priority">${workOrderPriorityOptions(editing?editing.priority:'medium')}</select></div>
     </div>
     <div class="row2">
       <div class="field"><label>Assigned worker <span style="text-transform:none;font-weight:400;">(linked by Microsoft email)</span></label><select id="f-worker" onchange="updateWaPreview()"><option value="">- Unassigned -</option>${userOptions(editing?editing.assignedUserId:'')}</select></div>
@@ -2010,6 +2071,7 @@ function updateWaPreview(){
   if(emailField) emailField.value = u ? (u.email || '(no Microsoft email on file for this user)') : '';
 }
 async function saveWO(){
+  if(DATA.adminSettings.maintenanceMode&&!['admin','superadmin'].includes(state.role)){showToast('Work-order updates are paused during maintenance.');return;}
   const title = document.getElementById('f-title').value.trim();
   if(!title){ showToast('Title is required'); return; }
   const worker = userById(document.getElementById('f-worker').value);
@@ -2038,7 +2100,8 @@ async function saveWO(){
     await persist(); closeModal(); renderAll(); showToast('Work order updated' + (reassigned && worker ? ' - reassigned to ' + worker.name : '')); if(reassigned && worker) void notifyAssignee(wo.id);
   } else {
     DATA.workOrders.push(Object.assign({
-      id: nextId('WO','wo'), status: 'pending_approval',
+      id: nextId('WO','wo'), status: DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',
+      approvedOn:DATA.adminSettings.workOrderApproval===false?new Date().toISOString().slice(0,10):'',
       createdDate: new Date().toISOString().slice(0,10), gpsCheckin: null
     }, fields));
     await persist(); closeModal(); renderAll(); showToast('Submitted - awaiting approval'); const created=DATA.workOrders[DATA.workOrders.length-1]; if(worker) void notifyAssignee(created.id);
@@ -2210,7 +2273,7 @@ function openPMModal(){
     <div class="field"><label>Asset</label><input id="f-asset" list="asset-options-list" placeholder="Choose an asset or type an ID / name"></div>
     <div class="field"><label>Task</label><input id="f-task" placeholder="e.g. Belt inspection"></div>
     <div class="row2">
-      <div class="field"><label>Frequency</label><select id="f-freq"><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option>Annually</option></select></div>
+      <div class="field"><label>Frequency</label><select id="f-freq">${adminSettingList('maintenanceFrequencies',['Weekly','Monthly','Quarterly','Biannual','Annual']).map(value=>'<option>'+escapeHtml(value)+'</option>').join('')}</select></div>
       <div class="field"><label>Assigned to</label><input id="f-assignee" placeholder="Name"></div>
     </div>
     <div class="row2">
@@ -2571,11 +2634,13 @@ const ADMIN_PERMISSION_RESOURCES=['Centres','Assets','Work Orders','Maintenance'
 const ADMIN_PERMISSION_ACTIONS=['view','create','edit','delete','approve'];
 function defaultAdminSettings(){
   const settings={permissionMatrixEnforced:false};
-  ADMIN_SETTING_GROUPS.forEach(group=>group.fields.forEach(([key,label,type,value])=>{ if(type!=='permissions' && type!=='file') settings[key]=type==='checkbox'?value==='true':value; }));
+  ADMIN_SETTING_GROUPS.forEach(group=>group.fields.forEach(([key,label,type,value])=>{if(type!=='permissions'&&type!=='file')settings[key]=type==='checkbox'?value==='true':value;}));
   settings.permissionMatrix={};
   ['superadmin','admin','hq','centre','technician','intern','viewer','auditor'].forEach(role=>{
     settings.permissionMatrix[role]={};
-    ADMIN_PERMISSION_RESOURCES.forEach(resource=>{ settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||action==='view'])); });
+    ADMIN_PERMISSION_RESOURCES.forEach(resource=>{
+      settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||(role==='intern'&&resource==='Assets'&&['view','create','edit'].includes(action))||action==='view']));
+    });
   });
   return settings;
 }
@@ -2612,10 +2677,10 @@ async function saveAdminSetting(key,input){
   if(key==='organisationName'){ DATA.orgName=value; }
   if(key==='m365Folder') DATA.sharepointFolder=value;
   if(key==='m365SiteId') DATA.sharepointSiteId=value;
-  await persist(); applyBranding(); if(key==='permissionMatrixEnforced') applyPermissionVisibility(); showToast('Setting saved');
+  await persist(); applyTheme(); applyBranding(); renderAll(); showToast('Setting saved and applied');
 }
 async function setPermission(role,resource,action,allowed){
-  DATA.adminSettings.permissionMatrix[role][resource][action]=allowed; await persist(); applyPermissionVisibility();
+  DATA.adminSettings.permissionMatrix[role][resource][action]=allowed; await persist(); renderAll();
 }
 function applyPermissionVisibility(){
   const permissions=DATA&&DATA.adminSettings&&DATA.adminSettings.permissionMatrix&&DATA.adminSettings.permissionMatrix[state.role];
@@ -2647,16 +2712,24 @@ function applyPermissionVisibility(){
 function readBrandImage(key,input){
   const file=input.files&&input.files[0]; if(!file) return;
   if(file.size>750*1024){ showToast('Choose an image smaller than 750 KB'); input.value=''; return; }
-  const reader=new FileReader(); reader.onload=async()=>{ DATA.adminSettings[key]=reader.result; await persist(); applyBranding(); showToast('Brand image saved'); };
+  const reader=new FileReader(); reader.onload=async()=>{ DATA.adminSettings[key]=reader.result; await persist(); applyBranding(); renderAll(); showToast('Brand image saved and applied'); };
   reader.onerror=()=>showToast('Could not read that image'); reader.readAsDataURL(file);
 }
 function applyBranding(){
-  if(!DATA||!DATA.adminSettings) return;
-  const settings=DATA.adminSettings;
+  if(!DATA||!DATA.adminSettings)return;
+  const settings=DATA.adminSettings,appName=settings.brandingSystemName||settings.applicationName||'PID Facilities Management';
   document.documentElement.style.setProperty('--accent',settings.brandingAccent||'#D98C2B');
-  if(settings.applicationName) document.title=settings.applicationName;
-  if(settings.logoImage||settings.brandingLogo){ const source=settings.brandingLogo||settings.logoImage; document.querySelectorAll('.brand-mark img,#login-logo-slot img,#pending-logo-slot img').forEach(image=>image.src=source); }
-  if(settings.faviconImage||settings.brandingFavicon){ let icon=document.querySelector('link[rel="icon"]'); if(icon){ icon.href=settings.brandingFavicon||settings.faviconImage; } }
+  document.title=appName;
+  const brandName=document.querySelector('.brand-text .name');if(brandName)brandName.textContent=appName;
+  const brandSub=document.querySelector('.brand-text .sub');if(brandSub)brandSub.textContent=settings.department||'MANAGEMENT SYSTEM';
+  const description=document.querySelector('.brand-text .description');if(description)description.textContent=settings.systemDescription||'';
+  const loginNote=document.getElementById('login-note');if(loginNote)loginNote.textContent=settings.brandingLoginText||'Your session is protected by the application server. Contact an administrator if you need access.';
+  const loginSub=document.getElementById('login-sub');if(loginSub&&settings.systemDescription)loginSub.textContent=settings.systemDescription;
+  const loginTitle=document.querySelector('#login-gate .login-card h1');if(loginTitle)loginTitle.textContent=settings.organisationName||'PID Facilities Management';
+  const support=document.getElementById('login-support');if(support){const bits=[settings.supportEmail,settings.supportTelephone].filter(Boolean);support.textContent=bits.length?'Support: '+bits.join(' · '):'';}
+  const maintenance=document.getElementById('maintenance-banner');if(maintenance){maintenance.hidden=!settings.maintenanceMode;maintenance.textContent=settings.systemDescription&&settings.maintenanceMode?'Maintenance mode: '+settings.systemDescription:'Maintenance mode is enabled. Some services may be temporarily unavailable.';}
+  if(settings.logoImage||settings.brandingLogo){const source=settings.brandingLogo||settings.logoImage;document.querySelectorAll('.brand-mark img,#login-logo-slot img,#pending-logo-slot img').forEach(image=>image.src=source);}
+  if(settings.faviconImage||settings.brandingFavicon){const icon=document.querySelector('link[rel="icon"]');if(icon)icon.href=settings.brandingFavicon||settings.faviconImage;}
 }
 async function refreshAuditLog(){
   try{
@@ -2699,6 +2772,10 @@ async function createAuthAccount(user){
   state.authUsers.push(result.user);
   revealTemporaryPassword(user.name,user.email,result.temporaryPassword);
 }
+function newUserAccessPolicy(){
+  const settings=DATA&&DATA.adminSettings||{},days=Math.max(0,Number(settings.accountExpiryDays)||0);
+  return {mustChangePassword:settings.forcePasswordChange!==false,accountExpiresAt:days?new Date(Date.now()+days*86400000).toISOString():null};
+}
 async function saveUser(){
   const name=document.getElementById('f-name').value.trim();
   const email=document.getElementById('f-email').value.trim();
@@ -2710,7 +2787,7 @@ async function saveUser(){
     const existing=state.authUsers.find(item=>item.email.toLowerCase()===email.toLowerCase());
     const response=existing
       ? await apiFetch(`/api/admin/users/${encodeURIComponent(existing.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,role})})
-      : await apiFetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,role})});
+      : await apiFetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,role,...newUserAccessPolicy()})});
     const result=await response.json();
     if(!response.ok) throw new Error(result.error||'Could not create user.');
     if(existing) state.authUsers=state.authUsers.map(item=>item.id===existing.id?result.user:item);
@@ -2915,75 +2992,73 @@ function openLoginHistory(accountId){
 }
 
 /* ---------- INTERN PLATFORM ---------- */
-function setCurrentIntern(id){ state.currentInternId = id; renderIntern(); }
+function setCurrentIntern(id){ if(state.role==='intern')return; state.currentInternId=id; renderIntern(); }
 function renderIntern(){
-  const interns = DATA.users.filter(u=>u.role==='intern');
-  const sel = document.getElementById('intern-select');
-  sel.innerHTML = interns.map(u=>`<option value="${u.id}">${u.name}</option>`).join('') || `<option value="">No interns added yet</option>`;
-  if(!state.currentInternId && interns.length) state.currentInternId = interns[0].id;
-  sel.value = state.currentInternId || '';
-  const intern = userById(state.currentInternId);
-  document.getElementById('intern-greeting').textContent = intern ? 'Welcome, ' + intern.name.split(' ')[0] : 'Welcome';
-
+  const signedIntern=state.role==='intern',realIntern=currentInternProfile(),interns=signedIntern?(realIntern?[realIntern]:[]):DATA.users.filter(user=>user.role==='intern');
+  const sel=document.getElementById('intern-select'),switcher=document.getElementById('intern-switcher-wrap');
+  sel.innerHTML=interns.map(user=>'<option value="'+escapeAttr(user.id)+'">'+escapeHtml(user.name)+'</option>').join('')||'<option value="">No intern profile assigned</option>';
+  if(signedIntern)state.currentInternId=realIntern?.id||'';
+  else if(!state.currentInternId&&interns.length)state.currentInternId=interns[0].id;
+  sel.value=state.currentInternId||'';
+  if(switcher)switcher.style.display=signedIntern?'none':'';
+  const intern=signedIntern?realIntern:userById(state.currentInternId);
+  document.getElementById('intern-greeting').textContent=intern?'Welcome, '+intern.name.split(' ')[0]:'Welcome';
+  const centre=intern&&centreById(intern.centreId),assetList=intern&&intern.centreId?DATA.assets.filter(asset=>asset.centreId===intern.centreId):[];
+  const addAsset=document.getElementById('intern-add-asset');
+  if(addAsset)addAsset.style.display=intern&&canManageAsset(null,'create')?'':'none';
+  const subtitle=document.getElementById('intern-assets-subtitle');
+  if(subtitle)subtitle.textContent=centre?'Inventory for '+centre.name:intern?'No valid centre is assigned to your profile':'Centre asset preview';
+  document.getElementById('intern-assets-empty').style.display=assetList.length?'none':'block';
+  document.getElementById('intern-assets-body').innerHTML=assetList.map(asset=>{
+    const editable=canManageAsset(asset,'edit');
+    return '<tr><td><span class="tag">'+escapeHtml(asset.serialNumber||asset.tag||asset.id)+'</span></td><td>'+escapeHtml(asset.name)+'</td><td>'+escapeHtml([asset.building,asset.location].filter(Boolean).join(' · ')||'-')+'</td><td>'+escapeHtml(asset.discipline||asset.category||'General items')+'</td><td>'+escapeHtml(asset.condition||'Good')+'</td><td>'+pill(asset.status||'operational')+'</td><td>'+(editable?'<button class="btn btn-ghost btn-sm" onclick="editAsset(\''+asset.id+'\')">Edit</button>':'<span class="pill neutral">View only</span>')+'</td></tr>';
+  }).join('');
+  const statEl=document.getElementById('intern-home-stats');
+  if(statEl){
+    const work=intern?DATA.workOrders.filter(item=>item.assignedUserId===intern.id||item.assignedTo===intern.name):[];
+    const reports=intern?DATA.assetReports.filter(item=>item.internId===intern.id):[];
+    const checklist=intern?(DATA.internChecklists[intern.id]||[]):[];
+    statEl.innerHTML=[['CENTRE ASSETS',assetList.length],['MY WORK ORDERS',work.filter(item=>!['completed','cancelled'].includes(String(item.status).toLowerCase())).length],['ISSUES REPORTED',reports.length],['CHECKLIST',checklist.filter(item=>item.done).length+'/'+checklist.length+' complete']].map(([label,value])=>'<div class="kpi"><div class="kpi-value">'+value+'</div><div class="kpi-label">'+label+'</div></div>').join('');
+  }
   renderAssetSuggestions();
-
-  const body = document.getElementById('intern-wo-body');
-  if(!intern){ body.innerHTML=''; document.getElementById('intern-wo-empty').style.display='block'; document.getElementById('intern-checklist').innerHTML=''; document.getElementById('intern-reports-body').innerHTML=''; document.getElementById('intern-reports-empty').style.display='block'; return; }
-  const mine = DATA.workOrders.filter(w=>w.assignedTo===intern.name);
-  document.getElementById('intern-wo-empty').style.display = mine.length===0 ? 'block' : 'none';
-  body.innerHTML = mine.map(w=>{ const asset = assetById(w.assetId);
-    return `<tr><td><span class="tag">${w.id}</span></td><td>${w.title}</td><td>${asset?asset.name:'-'}</td><td>${workOrderPriorityPill(w)}</td><td>${fmtDate(w.dueDate)}</td><td><span style="cursor:pointer;" onclick="cycleWOStatus('${w.id}')">${pill(w.status)}</span></td></tr>`;
-  }).join('');
-
-  const myReports = DATA.assetReports.filter(r=>r.internId===intern.id).slice().reverse();
-  document.getElementById('intern-reports-empty').style.display = myReports.length===0 ? 'block' : 'none';
-  document.getElementById('intern-reports-body').innerHTML = myReports.map(r=>{
-    const asset = assetById(r.assetId);
-    const linkedWO = DATA.workOrders.find(w=>w.id===r.linkedWoId);
-    return `<tr><td>${fmtDate(r.date)}</td><td>${asset?asset.name:(r.assetReference||'-')}</td><td>${pill(r.severity)}</td><td style="max-width:280px;">${r.issue}</td>
-      <td>${linkedWO ? '<span class="tag">'+linkedWO.id+'</span>' : '-'}</td>
-      <td>${linkedWO ? pill(linkedWO.status) : pill('open')}</td></tr>`;
-  }).join('');
-
-  const checklist = DATA.internChecklists[intern.id] || [];
-  document.getElementById('intern-checklist').innerHTML = checklist.map(item=>`<div class="item ${item.done?'done':''}"><input type="checkbox" ${item.done?'checked':''} onchange="toggleInternItem('${intern.id}','${item.id}')"><span class="t">${item.text}</span></div>`).join('') || '<div style="color:var(--ink-soft);font-size:12.5px;">No checklist yet.</div>';
-
-  const flagged = DATA.assets.filter(a=>a.status!=='operational');
-  document.getElementById('intern-flagged-empty').style.display = flagged.length===0 ? 'block' : 'none';
-  document.getElementById('intern-flagged-body').innerHTML = flagged.map(a=>{
-    const c = centreById(a.centreId);
-    return `<tr><td><span class="tag">${a.id}</span></td><td>${a.name}</td><td>${c?c.name:'-'}</td><td>${a.location}</td><td>${pill(a.status)}</td></tr>`;
-  }).join('');
+  const body=document.getElementById('intern-wo-body');
+  if(!intern){body.innerHTML='';document.getElementById('intern-wo-empty').style.display='block';document.getElementById('intern-checklist').innerHTML='';document.getElementById('intern-reports-body').innerHTML='';document.getElementById('intern-reports-empty').style.display='block';}
+  else{
+    const mine=DATA.workOrders.filter(work=>work.assignedUserId===intern.id||work.assignedTo===intern.name);
+    document.getElementById('intern-wo-empty').style.display=mine.length?'none':'block';
+    body.innerHTML=mine.map(work=>{const asset=assetById(work.assetId);return '<tr><td><span class="tag">'+escapeHtml(work.id)+'</span></td><td>'+escapeHtml(work.title)+'</td><td>'+escapeHtml(asset?asset.name:work.assetReference||'-')+'</td><td>'+workOrderPriorityPill(work)+'</td><td>'+fmtDate(work.dueDate)+'</td><td><span style="cursor:pointer;" onclick="cycleWOStatus(\''+work.id+'\')">'+pill(work.status)+'</span></td></tr>';}).join('');
+    const myReports=DATA.assetReports.filter(report=>report.internId===intern.id).slice().reverse();
+    document.getElementById('intern-reports-empty').style.display=myReports.length?'none':'block';
+    document.getElementById('intern-reports-body').innerHTML=myReports.map(report=>{const asset=assetById(report.assetId),linked=DATA.workOrders.find(work=>work.id===report.linkedWoId);return '<tr><td>'+fmtDate(report.date)+'</td><td>'+escapeHtml(asset?asset.name:report.assetReference||'-')+'</td><td>'+pill(report.severity)+'</td><td style="max-width:280px;">'+escapeHtml(report.issue)+'</td><td>'+(linked?'<span class="tag">'+escapeHtml(linked.id)+'</span>':'-')+'</td><td>'+pill(linked?linked.status:report.status||'open')+'</td></tr>';}).join('');
+    const checklist=DATA.internChecklists[intern.id]||[];
+    document.getElementById('intern-checklist').innerHTML=checklist.map(item=>'<div class="item '+(item.done?'done':'')+'"><input type="checkbox" '+(item.done?'checked':'')+' onchange="toggleInternItem(\''+intern.id+'\',\''+item.id+'\')"><span class="t">'+escapeHtml(item.text)+'</span></div>').join('')||'<div style="color:var(--ink-soft);font-size:12.5px;">No checklist yet.</div>';
+  }
+  const scopedAssets=signedIntern?assetsForCurrentRole():DATA.assets;
+  const flagged=scopedAssets.filter(asset=>asset.status!=='operational');
+  document.getElementById('intern-flagged-empty').style.display=flagged.length?'none':'block';
+  document.getElementById('intern-flagged-body').innerHTML=flagged.map(asset=>{const c=centreById(asset.centreId);return '<tr><td><span class="tag">'+escapeHtml(asset.id)+'</span></td><td>'+escapeHtml(asset.name)+'</td><td>'+escapeHtml(c?c.name:'-')+'</td><td>'+escapeHtml(asset.location||'-')+'</td><td>'+pill(asset.status)+'</td></tr>';}).join('');
 }
 function toggleInternItem(internId, itemId){
   const item = (DATA.internChecklists[internId]||[]).find(i=>i.id===itemId);
   if(item){ item.done = !item.done; persist(); renderIntern(); }
 }
 function submitAssetReport(){
-  const intern=userById(state.currentInternId);
-  if(!intern){showToast('Select who you are first');return;}
-  const assetEntry=document.getElementById('ar-asset').value.trim();
-  const asset=assetByEntry(assetEntry);
+  if(DATA.adminSettings.maintenanceMode&&!['admin','superadmin'].includes(state.role)){showToast('Issue reports are paused during maintenance.');return;}
+  const intern=state.role==='intern'?currentInternProfile():userById(state.currentInternId);
+  if(!intern){showToast('Your intern profile is not linked to this sign-in. Ask an administrator to link your email and centre.');return;}
+  const assetEntry=document.getElementById('ar-asset').value.trim(),asset=assetByEntry(assetEntry);
+  const centreId=asset?asset.centreId:intern.centreId;
+  if(state.role==='intern'&&asset&&asset.centreId!==intern.centreId){showToast('You can report only assets at your assigned centre.');return;}
   const assetName=asset?asset.name:assetEntry;
   if(!assetEntry){showToast('Choose a registered asset or type its ID, tag or name');return;}
-  const issue=document.getElementById('ar-issue').value.trim();
-  if(!issue){showToast('Describe what you noticed');return;}
+  const issue=document.getElementById('ar-issue').value.trim();if(!issue){showToast('Describe what you noticed');return;}
   const severity=document.getElementById('ar-severity').value,statusUpdate=document.getElementById('ar-status').value;
-  const wo={
-    id:nextId('WO','wo'),title:'Asset issue reported: '+assetName,assetId:asset?asset.id:'',
-    assetReference:asset?'':assetEntry,centreId:asset?asset.centreId:'',type:'corrective',
-    priority:severity,status:'pending_approval',assignedUserId:'',assignedTo:'Unassigned',waNumber:'',
-    location:asset?asset.location||'-':'-',createdDate:new Date().toISOString().slice(0,10),dueDate:'',
-    description:issue+'  (Reported by intern: '+intern.name+')',gpsCheckin:null,reportedByIntern:intern.name,
-    reportedByUserId:intern.id,reportedByName:intern.name,reportedByEmail:intern.email||''
-  };
+  const wo={id:nextId('WO','wo'),title:'Asset issue reported: '+assetName,assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',type:'corrective',priority:severity,status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',assignedUserId:'',assignedTo:'Unassigned',waNumber:'',location:asset?asset.location||'-':'-',createdDate:new Date().toISOString().slice(0,10),dueDate:'',description:issue+'  (Reported by intern: '+intern.name+')',gpsCheckin:null,reportedByIntern:intern.name,reportedByUserId:intern.id,reportedByName:intern.name,reportedByEmail:intern.email||''};
   DATA.workOrders.push(wo);
-  const previousStatus=asset?asset.status:null;
-  if(asset&&statusUpdate&&statusUpdate!==asset.status)asset.status=statusUpdate;
-  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:'open',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
-  persist();
-  document.getElementById('ar-issue').value='';document.getElementById('ar-status').value='';document.getElementById('ar-asset').value='';
-  renderAll();showToast('Report submitted - work order '+wo.id+' created'+(asset&&statusUpdate?', asset marked '+(statusUpdate==='down'?'not operational':'needs attention'):''));
+  const previousStatus=asset?asset.status:null;if(asset&&statusUpdate&&statusUpdate!==asset.status)asset.status=statusUpdate;
+  DATA.assetReports.push({id:nextId('AR','ar'),assetId:asset?asset.id:'',assetReference:asset?'':assetEntry,centreId:centreId||'',internId:intern.id,date:new Date().toISOString().slice(0,10),issue,severity,status:DATA.adminSettings.workOrderApproval===false?'open':'pending_approval',linkedWoId:wo.id,statusChangedFrom:asset&&statusUpdate?previousStatus:null,statusChangedTo:asset?statusUpdate||null:null});
+  persist();document.getElementById('ar-issue').value='';document.getElementById('ar-status').value='';document.getElementById('ar-asset').value='';
+  renderAll();showToast(DATA.adminSettings.workOrderApproval===false?'Report submitted - work order '+wo.id+' is active':'Report submitted to HQ/admin for approval - work order '+wo.id+' created');
 }
 
 /* ---------- REPORTS ---------- */
