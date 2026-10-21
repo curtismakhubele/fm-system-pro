@@ -227,17 +227,36 @@ function auditAppDataChanges(state, actor, beforeValue, nextValue, req) {
 }
 const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
 function filterAppDataForUser(user, data) {
-  if(user.role==='admin' || user.role==='superadmin' || !data.adminSettings?.permissionMatrixEnforced) return data;
-  const rules=data.adminSettings.permissionMatrix&&data.adminSettings.permissionMatrix[user.role]||{};
-  for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) data[field]=Array.isArray(data[field])?[]:{};
+  if(user.role==='admin' || user.role==='superadmin') return data;
+  if(data.adminSettings?.permissionMatrixEnforced){
+    const rules=data.adminSettings.permissionMatrix&&data.adminSettings.permissionMatrix[user.role]||{};
+    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) data[field]=Array.isArray(data[field])?[]:{};
+  }
+  if(user.role==='intern'){
+    const profile=(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
+    const centreId=profile&&profile.centreId;
+    data.centres=(data.centres||[]).filter(centre=>centre.id===centreId);
+    data.assets=(data.assets||[]).filter(asset=>!!centreId&&asset.centreId===centreId);
+  }
   return data;
 }
 function preserveHiddenAppData(user, beforeValue, nextValue) {
   if(user.role==='admin' || user.role==='superadmin') return nextValue;
   const before=JSON.parse(beforeValue||'{}'); const next=JSON.parse(nextValue||'{}');
-  if(!before.adminSettings?.permissionMatrixEnforced) return nextValue;
-  const rules=before.adminSettings.permissionMatrix&&before.adminSettings.permissionMatrix[user.role]||{};
-  for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
+  const rules=before.adminSettings?.permissionMatrix&&before.adminSettings.permissionMatrix[user.role]||{};
+  if(before.adminSettings?.permissionMatrixEnforced){
+    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
+  }
+  if(user.role==='intern'){
+    const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
+    const centreId=profile&&profile.centreId;
+    next.centres=before.centres||[];
+    next.users=before.users||[];
+    const submitted=Array.isArray(next.assets)?next.assets:[];
+    const submittedIds=new Set(submitted.map(asset=>String(asset.id)));
+    const protectedRows=(before.assets||[]).filter(asset=>asset.centreId!==centreId||!submittedIds.has(String(asset.id)));
+    next.assets=[...protectedRows,...submitted.filter(asset=>asset.centreId===centreId)];
+  }
   return JSON.stringify(next);
 }
 function appDataPermissionError(user, beforeValue, nextValue) {
@@ -245,8 +264,10 @@ function appDataPermissionError(user, beforeValue, nextValue) {
   try{
     const before=JSON.parse(beforeValue||'{}'); const next=JSON.parse(nextValue||'{}');
     const settings=before.adminSettings||{};
+    const protectedKeys=['users','adminSettings','orgName','msEmail','waNumber','requireMsAuthForAdmin','sharepointFolder','sharepointSiteId'];
+    if(protectedKeys.some(key=>JSON.stringify(before[key])!==JSON.stringify(next[key]))) return 'Administrator permission required for user and system settings.';
     if(user.role==='intern'){
-      const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
+      const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
       const centreId=profile&&profile.centreId;
       const oldAssets=Array.isArray(before.assets)?before.assets:[],newAssets=Array.isArray(next.assets)?next.assets:[];
       if(JSON.stringify(oldAssets)!==JSON.stringify(newAssets)){
@@ -255,36 +276,39 @@ function appDataPermissionError(user, beforeValue, nextValue) {
         const newMap=new Map(newAssets.map((asset,index)=>[String(asset.id||index),asset]));
         for(const [id,asset] of newMap){
           const previous=oldMap.get(id);
-          if(!previous){if(asset.centreId!==centreId)return 'Interns can add assets only to their assigned centre.';continue;}
-          if(JSON.stringify(previous)!==JSON.stringify(asset)&&
-             (previous.centreId!==centreId||asset.centreId!==centreId)) return 'Interns can edit assets only within their assigned centre.';
+          if(!previous){
+            if(asset.centreId!==centreId) return 'Interns can add assets only to their assigned centre.';
+            continue;
+          }
+          if(JSON.stringify(previous)!==JSON.stringify(asset)){
+            if(previous.centreId!==centreId||asset.centreId!==centreId) return 'Interns can edit assets only within their assigned centre.';
+            if(previous.status==='decommissioned') return 'Decommissioned assets cannot be edited by interns.';
+          }
         }
         for(const id of oldMap.keys()) if(!newMap.has(id)) return 'Interns cannot remove assets.';
       }
     }
     if(!settings.permissionMatrixEnforced) return null;
-    const protectedKeys=['users','adminSettings','orgName','msEmail','waNumber','requireMsAuthForAdmin','sharepointFolder','sharepointSiteId'];
-    if(protectedKeys.some(key=>JSON.stringify(before[key])!==JSON.stringify(next[key]))) return 'Administrator permission required for user and system settings.';
     for(const [key,resource] of Object.entries(APP_DATA_RESOURCES)){
       const oldRows=before[key]||[]; const newRows=next[key]||[];
       if(JSON.stringify(oldRows)===JSON.stringify(newRows)) continue;
       const roleRules=settings.permissionMatrix&&settings.permissionMatrix[user.role];
       const rules=roleRules&&roleRules[resource];
-      if(!rules||rules.view!==true) return `View permission denied for ${resource}.`;
+      if(!rules||rules.view!==true) return 'View permission denied for '+resource+'.';
       const oldMap=new Map((Array.isArray(oldRows)?oldRows:[]).map((row,index)=>[String(row.id||index),row]));
       const newMap=new Map((Array.isArray(newRows)?newRows:[]).map((row,index)=>[String(row.id||index),row]));
       for(const [id,row] of newMap){
         const previous=oldMap.get(id);
-        if(!previous){ if(rules.create!==true) return `Create permission denied for ${resource}.`; continue; }
+        if(!previous){if(rules.create!==true)return 'Create permission denied for '+resource+'.';continue;}
         if(JSON.stringify(previous)!==JSON.stringify(row)){
           const approving=resource==='Work Orders'&&previous.status==='pending_approval'&&['open','denied'].includes(row.status);
           const action=approving?'approve':'edit';
-          if(rules[action]!==true) return `${action[0].toUpperCase()+action.slice(1)} permission denied for ${resource}.`;
+          if(rules[action]!==true)return action[0].toUpperCase()+action.slice(1)+' permission denied for '+resource+'.';
         }
       }
-      for(const id of oldMap.keys()) if(!newMap.has(id)&&rules.delete!==true) return `Delete permission denied for ${resource}.`;
+      for(const id of oldMap.keys()) if(!newMap.has(id)&&rules.delete!==true) return 'Delete permission denied for '+resource+'.';
     }
-  }catch(error){ return 'Invalid application data.'; }
+  }catch(error){return 'Invalid application data.';}
   return null;
 }
 function corsHeaders(req) {
@@ -601,6 +625,7 @@ async function handle(req, res) {
       if(key==='pid-fms-data-v2'){
         try{
           const before=JSON.parse(state.storage[key]||'{}'); const after=JSON.parse(value);
+          if(before.adminSettings?.maintenanceMode&&!['admin','superadmin'].includes(user.role)) return respond(res,423,{error:'The application is in maintenance mode. Please try again later.'});
           if(!['admin','superadmin'].includes(user.role) && JSON.stringify(before.coordinationApps||[])!==JSON.stringify(after.coordinationApps||[])) return respond(res,403,{error:'Administrator access required to manage coordination apps.'});
           const documentBytes=(Array.isArray(after.documents)?after.documents:[]).reduce((sum,doc)=>sum+Math.max(0,Number(doc.sizeBytes)||Number(doc.sizeKB||0)*1024),0);
           if(documentBytes>DOC_LIBRARY_CAPACITY_BYTES) return respond(res,413,{error:'The 2 TB document library limit would be exceeded.'});
