@@ -1029,8 +1029,8 @@ function normalizeData(){
 
 }
 async function persist(){
-  try{ await window.storage.set(STORE_KEY, JSON.stringify(DATA), false); }
-  catch(e){ showToast('Could not save - data will not persist'); }
+  try{ await window.storage.set(STORE_KEY, JSON.stringify(DATA), false); return true; }
+  catch(e){ showToast('Could not save changes. Check your access and retry.'); return false; }
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
@@ -2667,15 +2667,23 @@ function renderPermissionMatrix(){
 }
 function selectAdminSettingsTab(tab){ state.adminSettingsTab=tab; renderAdminSettings(); if(tab==='audit') refreshAuditLog(); }
 async function saveAdminSetting(key,input){
+  const previous=DATA.adminSettings[key],previousOrg=DATA.orgName,previousFolder=DATA.sharepointFolder,previousSite=DATA.sharepointSiteId;
   const value=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
   DATA.adminSettings[key]=value;
-  if(key==='organisationName'){ DATA.orgName=value; }
+  if(key==='organisationName') DATA.orgName=value;
   if(key==='m365Folder') DATA.sharepointFolder=value;
   if(key==='m365SiteId') DATA.sharepointSiteId=value;
-  await persist(); applyTheme(); applyBranding(); renderAll(); showToast('Setting saved and applied');
+  if(!await persist()){
+    DATA.adminSettings[key]=previous;DATA.orgName=previousOrg;DATA.sharepointFolder=previousFolder;DATA.sharepointSiteId=previousSite;
+    applyTheme();applyBranding();renderAll();return;
+  }
+  applyTheme();applyBranding();renderAll();showToast('Setting saved and applied');
 }
 async function setPermission(role,resource,action,allowed){
-  DATA.adminSettings.permissionMatrix[role][resource][action]=allowed; await persist(); renderAll();
+  const previous=DATA.adminSettings.permissionMatrix[role][resource][action];
+  DATA.adminSettings.permissionMatrix[role][resource][action]=allowed;
+  if(!await persist()){DATA.adminSettings.permissionMatrix[role][resource][action]=previous;renderAll();return;}
+  renderAll();
 }
 function applyPermissionVisibility(){
   const permissions=DATA&&DATA.adminSettings&&DATA.adminSettings.permissionMatrix&&DATA.adminSettings.permissionMatrix[state.role];
