@@ -444,7 +444,8 @@
       <div class="navgroup" data-roles="admin,hq,centre,technician,intern">
         <div class="label" onclick="toggleNavGroup(this)">Operations<span class="chev">â–¾</span></div>
         <div class="navitem" data-view="assets" data-roles="admin,hq,centre,technician,intern"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 12.5 20.5a1.5 1.5 0 0 1-2.1 0L3 13V4h9z"/><circle cx="7.4" cy="7.4" r="1.4"/></svg></span>Assets<span class="badge" id="nav-assets-count">0</span></div>
-        <div class="navitem" data-view="asset-transfer" data-roles="admin,hq,centre,technician,intern"><span class="navicon">⇄</span>Asset transfer &amp; disposal register<span class="badge" id="nav-atd-count">0</span></div><div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
+        <div class="navitem" data-view="asset-transfer" data-roles="admin,hq,centre,technician,intern"><span class="navicon">⇄</span>Asset transfer &amp; disposal register<span class="badge" id="nav-atd-count">0</span></div><div class="navitem" data-view="workforce-attendance" data-roles="admin,hq,centre,technician,intern"><span class="navicon">◷</span>Workforce Attendance</div>
+        <div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
         <div class="navitem" data-view="maintenance" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.6"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.6"/></svg></span>Preventive Maintenance<span class="badge" id="nav-pm-count">0</span></div>
         <div class="navitem" data-view="contractors" data-roles="admin,hq,centre"><span class="navicon">♙</span>Contractors &amp; Contracts<span class="badge" id="nav-contractor-count">0</span></div>
         <div class="navitem" data-view="sla" data-roles="admin,hq,centre"><span class="navicon">◉</span>SLA Monitoring</div>
@@ -597,6 +598,34 @@
         <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Asset</th><th>Action</th><th>Request date</th><th>Destination / method</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody id="atd-body"></tbody></table><div class="empty" id="atd-empty" style="display:none;"><div class="big">No transfer or disposal records</div>Submit a request to start the register.</div></div>
       </div>
       <div class="note" style="margin-top:10px;">Only Admin/HQ can approve or reject requests. Completing an approved transfer updates the linked asset location and assignment; completing a disposal marks the asset decommissioned while retaining its record.</div>
+    </section>
+
+    <!-- WORKFORCE ATTENDANCE -->
+    <section class="view" id="view-workforce-attendance">
+      <div class="topbar"><div><h1>Workforce Attendance</h1><div class="meta">Record attendance only while inside your assigned centre’s mapped work area.</div></div>
+        <div class="topbar-actions"><button class="btn btn-ghost" type="button" onclick="exportAttendanceCSV()">⇩ Export CSV</button><button class="btn btn-accent" type="button" onclick="checkAttendanceLocation()">Check work area</button></div>
+      </div>
+      <div class="kpi-row" id="attendance-kpis"></div>
+      <div class="grid-2" style="margin-bottom:18px;">
+        <div class="panel">
+          <div class="panel-head"><div><h2>Clock in / clock out</h2><div class="sub">GPS verification is required for each attendance action.</div></div><span class="pill neutral" id="attendance-location-status">Location not checked</span></div>
+          <div class="panel-body">
+            <div class="alert alert-info" id="attendance-workarea-message">Check your location to confirm that you are within your assigned centre’s work area.</div>
+            <div class="row" style="margin:10px 0 16px;"><span class="t">Staff member</span><strong id="attendance-employee">—</strong></div>
+            <div class="row" style="margin:10px 0 16px;"><span class="t">Assigned centre</span><strong id="attendance-centre">—</strong></div>
+            <div class="row" style="margin:10px 0 16px;"><span class="t">Work area</span><strong id="attendance-radius">—</strong></div>
+            <div class="row" style="margin:10px 0 16px;"><span class="t">Live GPS check</span><strong id="attendance-distance">Not checked</strong></div>
+            <div class="field" id="attendance-reason-wrap" style="display:none;"><label for="attendance-reason">Reason for clocking out before 16:00 *</label><textarea id="attendance-reason" placeholder="Enter a reason for early departure"></textarea></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent" id="attendance-clock-in" type="button" onclick="recordAttendanceAction('in')" disabled>Clock in</button><button class="btn btn-ghost" id="attendance-clock-out" type="button" onclick="recordAttendanceAction('out')" disabled>Clock out</button></div>
+            <div class="note" style="margin-top:12px;">Centre coordinates are maintained in Centres &amp; GPS. Default geofence radius: 150 m. GPS accuracy must be 100 m or better. Allow location access in your browser when prompted.</div>
+          </div>
+        </div>
+        <div class="panel"><div class="panel-head"><div><h2>Today at your centre</h2><div class="sub">Attendance captured from authenticated staff profiles.</div></div></div><div id="attendance-today-summary" class="panel-body"></div></div>
+      </div>
+      <div class="panel"><div class="panel-head"><div><h2>Attendance records</h2><div class="sub" id="attendance-record-scope">Your records</div></div></div>
+        <table><thead><tr><th>Date</th><th>Staff member</th><th>Centre</th><th>Clock in</th><th>Clock out</th><th>Hours</th><th>Geofence</th><th>Early departure</th></tr></thead><tbody id="attendance-records-body"></tbody></table>
+        <div class="empty" id="attendance-records-empty" style="display:none;"><div class="big">No attendance records yet</div>Your verified clock-in and clock-out entries will appear here.</div>
+      </div>
     </section>
 
     <!-- WORK ORDERS -->
@@ -980,6 +1009,7 @@ async function loadData(){
 function normalizeData(){
   if(!DATA.centres) DATA.centres = [];
   if(!Array.isArray(DATA.programmeReports)) DATA.programmeReports = [];
+  if(!Array.isArray(DATA.attendanceRecords)) DATA.attendanceRecords = [];
   if(!DATA.pidReportLatestSnapshot||typeof DATA.pidReportLatestSnapshot!=='object') DATA.pidReportLatestSnapshot=null;
   if(!DATA.users) DATA.users = [];
   if(!DATA.waNumber) DATA.waNumber = '0634116900';
@@ -1035,8 +1065,8 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], pidReportLatestSnapshot:null, doodleLinks:[], documents:[],
-    internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0} };
+    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], pidReportLatestSnapshot:null, doodleLinks:[], documents:[], attendanceRecords:[],
+    internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0,att:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
 
@@ -2637,7 +2667,7 @@ ADMIN_SETTING_GROUPS.find(group=>group.id==='workorders').fields.push(
   ['assignmentEmailSubject','Assignment email subject','text','PID Facilities: Work order assigned'],
   ['assignmentEmailFooter','Assignment email footer','textarea','PID Facilities Management']
 );
-const ADMIN_PERMISSION_RESOURCES=['Centres','Assets','Work Orders','Maintenance','Projects','Contractors','Procurement','Documents','OHSA','Reports','Users'];
+const ADMIN_PERMISSION_RESOURCES=['Centres','Assets','Work Orders','Workforce','Maintenance','Projects','Contractors','Procurement','Documents','OHSA','Reports','Users'];
 const ADMIN_PERMISSION_ACTIONS=['view','create','edit','delete','approve'];
 function defaultAdminSettings(){
   const settings={permissionMatrixEnforced:false};
@@ -2646,7 +2676,7 @@ function defaultAdminSettings(){
   ['superadmin','admin','hq','centre','technician','intern','viewer','auditor'].forEach(role=>{
     settings.permissionMatrix[role]={};
     ADMIN_PERMISSION_RESOURCES.forEach(resource=>{
-      settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||(role==='intern'&&resource==='Assets'&&['view','create','edit'].includes(action))||action==='view']));
+      settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||(role==='intern'&&resource==='Assets'&&['view','create','edit'].includes(action))||(resource==='Workforce'&&['centre','technician','intern'].includes(role)&&['view','create','edit'].includes(action))||action==='view']));
     });
   });
   return settings;
@@ -2701,7 +2731,7 @@ function applyPermissionVisibility(){
   const permissions=DATA&&DATA.adminSettings&&DATA.adminSettings.permissionMatrix&&DATA.adminSettings.permissionMatrix[state.role];
   if(!permissions) return;
   const enforced=!!DATA.adminSettings.permissionMatrixEnforced;
-  const viewResources={centres:'Centres',assets:'Assets',workorders:'Work Orders',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports','pid-report-studio':'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
+  const viewResources={centres:'Centres',assets:'Assets',workorders:'Work Orders','workforce-attendance':'Workforce',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports','pid-report-studio':'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
   document.querySelectorAll('.navitem[data-view]').forEach(item=>{
     const resource=viewResources[item.dataset.view];
     if(resource&&permissions[resource]) item.classList.toggle('permission-hidden',enforced&&!permissions[resource].view);
@@ -3515,6 +3545,100 @@ function renderOpsManagement(){
   if(dashboardSla) dashboardSla.innerHTML='<div class="list-simple"><div class="row"><strong>'+rules.length+'</strong><span>priority targets configured</span></div><div class="row"><strong>'+DATA.workOrders.filter(w=>w.status!=='completed'&&w.status!=='COMPLETED').length+'</strong><span>open work orders</span></div></div>';
 }
 
+
+let attendanceLocationState={valid:false,userId:'',centreId:'',distanceMeters:null,accuracy:null,checkedAt:0};
+function attendanceLocalParts(date=new Date()){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(date);
+  const out=Object.fromEntries(parts.filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+  return {date:out.year+'-'+out.month+'-'+out.day,time:out.hour+':'+out.minute+':'+out.second,iso:date.toISOString()};
+}
+function attendanceDistance(lat1,lng1,lat2,lng2){
+  const rad=value=>value*Math.PI/180,earth=6371000;
+  const dLat=rad(lat2-lat1),dLng=rad(lng2-lng1),a=Math.sin(dLat/2)**2+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLng/2)**2;
+  return earth*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function attendanceCentreFor(user){return user?centreById(user.centreId):null;}
+function attendanceRecordsVisible(user){
+  const rows=Array.isArray(DATA.attendanceRecords)?DATA.attendanceRecords:[];
+  if(['admin','superadmin','hq'].includes(String(state.role||'').toLowerCase()))return rows;
+  if(state.role==='centre')return rows.filter(row=>row.centreId===user?.centreId);
+  return rows.filter(row=>row.userId===user?.id);
+}
+function renderWorkforceAttendance(){
+  const root=document.getElementById('view-workforce-attendance');if(!root||!DATA)return;
+  const user=currentDirectoryUser(),centre=attendanceCentreFor(user),coords=centre&&Number.isFinite(Number(centre.lat))&&Number.isFinite(Number(centre.lng));
+  const radius=Math.max(20,Math.min(1000,Number(centre?.attendanceRadiusM)||150));
+  const records=attendanceRecordsVisible(user),today=attendanceLocalParts().date,todayRows=records.filter(row=>row.date===today),active=records.find(row=>row.userId===user?.id&&row.date===today&&row.clockIn&&!row.clockOut);
+  const locationMatches=attendanceLocationState.valid&&attendanceLocationState.userId===user?.id&&attendanceLocationState.centreId===centre?.id;
+  document.getElementById('attendance-employee').textContent=user?.name||'Sign in with an assigned staff profile';
+  document.getElementById('attendance-centre').textContent=centre?.name||'No assigned centre';
+  document.getElementById('attendance-radius').textContent=coords?radius+' m from centre GPS pin':'Centre GPS coordinates required';
+  document.getElementById('attendance-clock-in').disabled=!locationMatches||!!active;
+  document.getElementById('attendance-clock-out').disabled=!locationMatches||!active;
+  document.getElementById('attendance-reason-wrap').style.display=active&&attendanceLocalParts().time<'16:00:00'?'':'none';
+  const message=document.getElementById('attendance-workarea-message'),badge=document.getElementById('attendance-location-status');
+  if(!user){message.textContent='Your sign-in is not linked to a staff profile. Ask an administrator to link your account.';badge.textContent='Profile required';}
+  else if(!centre){message.textContent='Your staff profile has no assigned centre. Ask an administrator to assign your centre.';badge.textContent='Centre required';}
+  else if(!coords){message.textContent='This centre has no valid GPS coordinates. An administrator must configure the centre location before attendance can be recorded.';badge.textContent='Location unavailable';}
+  else if(locationMatches){message.textContent='You are within '+radius+' m of '+centre.name+'. Clock actions will recheck your location before saving.';badge.textContent='Inside work area';}
+  else {message.textContent='Check your current location. Attendance actions remain disabled outside '+centre.name+'’s '+radius+' m work area.';badge.textContent='Location not checked';}
+  document.getElementById('attendance-distance').textContent=attendanceLocationState.distanceMeters===null?'Not checked':Math.round(attendanceLocationState.distanceMeters)+' m away · GPS accuracy '+Math.round(attendanceLocationState.accuracy||0)+' m';
+  const inCount=todayRows.filter(row=>row.clockIn&&!row.clockOut).length,outCount=todayRows.filter(row=>row.clockOut).length,earlyCount=todayRows.filter(row=>row.earlyReason).length;
+  document.getElementById('attendance-kpis').innerHTML=[['ON DUTY',inCount],['CLOCKED OUT',outCount],['EARLY DEPARTURES',earlyCount],['RECORDS TODAY',todayRows.length]].map(([label,value])=>'<div class="kpi"><div class="kpi-value">'+value+'</div><div class="kpi-label">'+label+'</div></div>').join('');
+  document.getElementById('attendance-today-summary').innerHTML=todayRows.length?todayRows.slice().sort((a,b)=>(a.clockIn||'').localeCompare(b.clockIn||'')).map(row=>'<div class="row" style="padding:8px 0;"><span class="t">'+escapeHtml(row.employeeName||'Staff')+' · '+escapeHtml(row.clockIn||'-')+'</span><strong>'+escapeHtml(row.clockOut||'On duty')+'</strong></div>').join(''):'<div class="empty">No attendance has been recorded today.</div>';
+  document.getElementById('attendance-record-scope').textContent=['admin','superadmin','hq'].includes(state.role)?'All centres':state.role==='centre'?'Assigned centre records':'Your attendance records';
+  const body=document.getElementById('attendance-records-body');
+  body.innerHTML=records.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.clockIn||'').localeCompare(a.clockIn||'')).map(row=>'<tr><td>'+escapeHtml(row.date||'-')+'</td><td>'+escapeHtml(row.employeeName||'-')+'</td><td>'+escapeHtml(row.centreName||'-')+'</td><td>'+escapeHtml(row.clockIn||'-')+'</td><td>'+escapeHtml(row.clockOut||'—')+'</td><td>'+ (row.clockOut?((new Date(row.clockOutAt||row.clockOut).getTime()-new Date(row.clockInAt||row.clockIn).getTime())/3600000).toFixed(2):'—')+'</td><td>'+escapeHtml(row.clockInGeo?Math.round(row.clockInGeo.distanceMeters)+' m / ±'+Math.round(row.clockInGeo.accuracy)+' m':'—')+'</td><td>'+escapeHtml(row.earlyReason||'—')+'</td></tr>').join('');
+  document.getElementById('attendance-records-empty').style.display=records.length?'none':'block';
+}
+function attendanceGetPosition(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error('This browser does not support GPS location.'));return;}
+    navigator.geolocation.getCurrentPosition(resolve,error=>reject(new Error(error.code===1?'Allow location access to use Workforce Attendance.':error.code===2?'Your location is unavailable. Move outdoors and try again.':'Location check timed out. Try again.')),{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  });
+}
+async function verifyAttendanceWorkArea(){
+  const user=currentDirectoryUser(),centre=attendanceCentreFor(user),lat=Number(centre?.lat),lng=Number(centre?.lng),radius=Math.max(20,Math.min(1000,Number(centre?.attendanceRadiusM)||150));
+  attendanceLocationState={valid:false,userId:user?.id||'',centreId:centre?.id||'',distanceMeters:null,accuracy:null,checkedAt:0};
+  if(!user||!centre){renderWorkforceAttendance();throw new Error('Your account must have an assigned staff profile and centre.');}
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)){renderWorkforceAttendance();throw new Error('Centre GPS coordinates are missing. Ask an administrator to configure this centre.');}
+  const position=await attendanceGetPosition(),point=position.coords,distance=attendanceDistance(lat,lng,Number(point.latitude),Number(point.longitude));
+  attendanceLocationState={valid:distance<=radius&&Number(point.accuracy)<=100,userId:user.id,centreId:centre.id,distanceMeters:distance,accuracy:Number(point.accuracy),checkedAt:Date.now(),lat:Number(point.latitude),lng:Number(point.longitude)};
+  renderWorkforceAttendance();
+  if(Number(point.accuracy)>100)throw new Error('GPS accuracy is too low ('+Math.round(point.accuracy)+' m). Try again outdoors.');
+  if(distance>radius)throw new Error('You are '+Math.round(distance)+' m from '+centre.name+'. Attendance is enabled only within '+radius+' m of the centre.');
+  return {user,centre,point,distance,radius};
+}
+async function checkAttendanceLocation(){
+  try{await verifyAttendanceWorkArea();showToast('Location verified inside your assigned centre work area.');}
+  catch(error){attendanceLocationState.valid=false;renderWorkforceAttendance();showToast(error.message||'Could not verify your location.');}
+}
+async function recordAttendanceAction(action){
+  try{
+    const {user,centre,point,distance}=await verifyAttendanceWorkArea();
+    if(DATA.adminSettings.maintenanceMode&&!['admin','superadmin'].includes(state.role)){showToast('Attendance capture is paused during maintenance.');return;}
+    const local=attendanceLocalParts(),records=DATA.attendanceRecords||(DATA.attendanceRecords=[]);
+    const active=records.find(row=>row.userId===user.id&&row.date===local.date&&row.clockIn&&!row.clockOut);
+    if(action==='in'){
+      if(active){showToast('You are already clocked in.');return;}
+      const geo={lat:Number(point.latitude),lng:Number(point.longitude),accuracy:Number(point.accuracy),distanceMeters:Math.round(distance),verifiedAt:new Date().toISOString()};
+      records.push({id:nextId('ATT','att'),userId:user.id,employeeName:user.name,employeeEmail:user.email||'',centreId:centre.id,centreName:centre.name,date:local.date,clockIn:local.time,clockInAt:local.iso,clockInGeo:geo,clockOut:'',clockOutAt:'',clockOutGeo:null,earlyReason:'',notes:''});
+    }else if(action==='out'){
+      if(!active){showToast('There is no open attendance record to clock out from.');return;}
+      const early=local.time<'16:00:00',reason=(document.getElementById('attendance-reason').value||'').trim();
+      if(early&&!reason){showToast('Enter a reason before clocking out before 16:00.');return;}
+      active.clockOut=local.time;active.clockOutAt=local.iso;active.clockOutGeo={lat:Number(point.latitude),lng:Number(point.longitude),accuracy:Number(point.accuracy),distanceMeters:Math.round(distance),verifiedAt:new Date().toISOString()};active.earlyReason=early?reason:'';
+    }else return;
+    if(!await persist()){attendanceLocationState.valid=false;return;}
+    if(action==='out')document.getElementById('attendance-reason').value='';
+    attendanceLocationState.valid=false;renderAll();showToast(action==='in'?'Clock-in recorded inside the centre work area.':'Clock-out recorded inside the centre work area.');
+  }catch(error){attendanceLocationState.valid=false;renderWorkforceAttendance();showToast(error.message||'Attendance could not be recorded.');}
+}
+function exportAttendanceCSV(){
+  const rows=attendanceRecordsVisible(currentDirectoryUser());
+  downloadText('workforce-attendance.csv',toCSV([{label:'Date',get:r=>r.date},{label:'Employee',get:r=>r.employeeName},{label:'Centre',get:r=>r.centreName},{label:'Clock In',get:r=>r.clockIn},{label:'Clock Out',get:r=>r.clockOut},{label:'Early Departure Reason',get:r=>r.earlyReason},{label:'GPS Distance m',get:r=>r.clockInGeo?.distanceMeters}],rows));
+}
+
 function renderAll(){
   renderAssetSuggestions();
   renderCentreFilterOptions();
@@ -3527,6 +3651,7 @@ function renderAll(){
   renderWorkOrders();  renderAssets();
   renderWorkOrders();
   renderWorkOrderCreatePage();
+  renderWorkforceAttendance();
   renderPM();
   renderOpsManagement();
   renderProjects();
