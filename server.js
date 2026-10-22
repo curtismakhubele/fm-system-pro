@@ -225,15 +225,20 @@ function auditAppDataChanges(state, actor, beforeValue, nextValue, req) {
     if(changed.length) writeAudit(state,actor,'records.updated',changed.slice(0,30).join('; '),req);
   }catch(error){ /* Ignore audit serialization errors; the data write is validated separately. */ }
 }
-const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
+const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',attendanceRecords:'Workforce',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
 function filterAppDataForUser(user, data) {
   if(user.role==='admin' || user.role==='superadmin') return data;
+  const staffProfile=(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
+  const attendanceRows=Array.isArray(data.attendanceRecords)?data.attendanceRecords:[];
+  if(['hq'].includes(user.role)) data.attendanceRecords=attendanceRows;
+  else if(user.role==='centre') data.attendanceRecords=attendanceRows.filter(row=>row.centreId&&row.centreId===staffProfile?.centreId);
+  else data.attendanceRecords=attendanceRows.filter(row=>row.userId===staffProfile?.id);
   const internProfile=user.role==='intern'?(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern'):null;
   const internWorkOrders=user.role==='intern'?(data.workOrders||[]).filter(row=>row.reportedByUserId===internProfile?.id):null;
   const internAssetReports=user.role==='intern'?(data.assetReports||[]).filter(row=>row.internId===internProfile?.id):null;
   if(data.adminSettings?.permissionMatrixEnforced){
     const rules=data.adminSettings.permissionMatrix&&data.adminSettings.permissionMatrix[user.role]||{};
-    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) data[field]=Array.isArray(data[field])?[]:{};
+    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(resource==='Workforce'&&!rules[resource]) continue; else if(!rules[resource]||rules[resource].view!==true) data[field]=Array.isArray(data[field])?[]:{};
   }
   if(user.role==='intern'){
     const profile=(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
@@ -248,11 +253,14 @@ function filterAppDataForUser(user, data) {
 function preserveHiddenAppData(user, beforeValue, nextValue) {
   if(user.role==='admin' || user.role==='superadmin') return nextValue;
   const before=JSON.parse(beforeValue||'{}'); const next=JSON.parse(nextValue||'{}');
+  const submittedAttendance=Array.isArray(next.attendanceRecords)?next.attendanceRecords:[];
+  const previousAttendance=Array.isArray(before.attendanceRecords)?before.attendanceRecords:[];
+  const attendanceProfile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
   const internSubmittedWorkOrders=user.role==='intern'&&Array.isArray(next.workOrders)?next.workOrders:[];
   const internSubmittedReports=user.role==='intern'&&Array.isArray(next.assetReports)?next.assetReports:[];
   const rules=before.adminSettings?.permissionMatrix&&before.adminSettings.permissionMatrix[user.role]||{};
   if(before.adminSettings?.permissionMatrixEnforced){
-    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
+    for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(resource==='Workforce'&&!rules[resource]) continue; else if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
   }
   if(user.role==='intern'){
     const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
@@ -274,7 +282,19 @@ function preserveHiddenAppData(user, beforeValue, nextValue) {
     const newOwnReports=submittedReports.filter(row=>!oldReportIds.has(String(row.id))&&row.internId===profile?.id);
     next.assetReports=[...oldAssetReports,...newOwnReports];
   }
+  const attendanceMap=new Map(previousAttendance.map(row=>[String(row.id),row]));
+  submittedAttendance.forEach(row=>{if(attendanceProfile&&row.userId===attendanceProfile.id)attendanceMap.set(String(row.id),row);});
+  next.attendanceRecords=[...attendanceMap.values()];
   return JSON.stringify(next);
+}
+function attendanceGeoValid(geo, centre) {
+  if(!geo||!centre) return false;
+  const lat=Number(geo.lat),lng=Number(geo.lng),accuracy=Number(geo.accuracy),centreLat=Number(centre.lat),centreLng=Number(centre.lng);
+  if(![lat,lng,accuracy,centreLat,centreLng].every(Number.isFinite)||accuracy<0||accuracy>100||Math.abs(lat)>90||Math.abs(lng)>180||Math.abs(centreLat)>90||Math.abs(centreLng)>180) return false;
+  const radians=value=>value*Math.PI/180,earth=6371000,dLat=radians(lat-centreLat),dLng=radians(lng-centreLng);
+  const a=Math.sin(dLat/2)**2+Math.cos(radians(centreLat))*Math.cos(radians(lat))*Math.sin(dLng/2)**2;
+  const distance=earth*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)),radius=Math.max(20,Math.min(1000,Number(centre.attendanceRadiusM)||150));
+  return distance<=radius&&Math.abs(distance-Number(geo.distanceMeters||0))<=Math.max(25,accuracy);
 }
 function appDataPermissionError(user, beforeValue, nextValue) {
   if(user.role==='admin' || user.role==='superadmin') return null;
@@ -283,6 +303,36 @@ function appDataPermissionError(user, beforeValue, nextValue) {
     const settings=before.adminSettings||{};
     const protectedKeys=['users','adminSettings','orgName','msEmail','waNumber','requireMsAuthForAdmin','sharepointFolder','sharepointSiteId'];
     if(protectedKeys.some(key=>JSON.stringify(before[key])!==JSON.stringify(next[key]))) return 'Administrator permission required for user and system settings.';
+    const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
+    const oldAttendance=Array.isArray(before.attendanceRecords)?before.attendanceRecords:[];
+    const newAttendance=Array.isArray(next.attendanceRecords)?next.attendanceRecords:[];
+    const attendancePermissions=settings.permissionMatrix&&settings.permissionMatrix[user.role]&&settings.permissionMatrix[user.role].Workforce;
+    if(settings.permissionMatrixEnforced&&attendancePermissions&&attendancePermissions.view!==true)return 'View permission denied for Workforce.';
+    const oldAttendanceMap=new Map(oldAttendance.map((row,index)=>[String(row.id||index),row]));
+    const newAttendanceMap=new Map(newAttendance.map((row,index)=>[String(row.id||index),row]));
+    for(const [id,row] of newAttendanceMap){
+      const previous=oldAttendanceMap.get(id);
+      if(!profile||!profile.centreId)return 'Assign this staff member to a centre before using attendance.';
+      if(previous){
+        if(previous.userId!==profile.id){
+          if(JSON.stringify(previous)!==JSON.stringify(row))return 'You can only update your own attendance records.';
+          continue;
+        }
+        if(settings.permissionMatrixEnforced&&attendancePermissions&&attendancePermissions.edit!==true&&JSON.stringify(previous)!==JSON.stringify(row))return 'Edit permission denied for Workforce.';
+        if(JSON.stringify(previous)!==JSON.stringify(row)){
+          const immutablePrevious={...previous},immutableNext={...row};
+          ['clockOut','clockOutAt','clockOutGeo','earlyReason','notes'].forEach(key=>{delete immutablePrevious[key];delete immutableNext[key];});
+          if(JSON.stringify(immutablePrevious)!==JSON.stringify(immutableNext)||previous.clockOut||!row.clockOut||!row.clockOutAt||!Number.isFinite(Date.parse(row.clockOutAt))||Math.abs(Date.now()-Date.parse(row.clockOutAt))>300000||!attendanceGeoValid(row.clockOutGeo,(before.centres||[]).find(item=>item.id===previous.centreId)))return 'Attendance records can only be clocked out once from inside the assigned centre work area.';
+          if(String(row.clockOut)< '16:00'&&!String(row.earlyReason||'').trim())return 'A reason is required for clock-out before 16:00.';
+        }
+      }else{
+        if(settings.permissionMatrixEnforced&&attendancePermissions&&attendancePermissions.create!==true)return 'Create permission denied for Workforce.';
+        const centre=(before.centres||[]).find(item=>item.id===row.centreId);
+        const time=Date.parse(row.clockInAt||'');
+        if(row.userId!==profile.id||row.centreId!==profile.centreId||row.clockOut||!row.clockInAt||!Number.isFinite(time)||Math.abs(Date.now()-time)>300000||!attendanceGeoValid(row.clockInGeo,centre))return 'Clock-in must belong to your assigned centre and be verified by GPS inside its work area.';
+      }
+    }
+    for(const id of oldAttendanceMap.keys())if(!newAttendanceMap.has(id))return 'Attendance records cannot be deleted.';
     if(user.role==='intern'){
       const profile=(before.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()&&item.role==='intern');
       const centreId=profile&&profile.centreId;
@@ -334,6 +384,7 @@ function appDataPermissionError(user, beforeValue, nextValue) {
     if(!settings.permissionMatrixEnforced) return null;
     for(const [key,resource] of Object.entries(APP_DATA_RESOURCES)){
       if(user.role==='intern'&&['workOrders','assetReports'].includes(key)) continue;
+      if(resource==='Workforce')continue;
       const oldRows=before[key]||[]; const newRows=next[key]||[];
       if(JSON.stringify(oldRows)===JSON.stringify(newRows)) continue;
       const roleRules=settings.permissionMatrix&&settings.permissionMatrix[user.role];
