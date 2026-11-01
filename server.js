@@ -225,9 +225,10 @@ function auditAppDataChanges(state, actor, beforeValue, nextValue, req) {
     if(changed.length) writeAudit(state,actor,'records.updated',changed.slice(0,30).join('; '),req);
   }catch(error){ /* Ignore audit serialization errors; the data write is validated separately. */ }
 }
-const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',attendanceRecords:'Workforce',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
+const APP_DATA_RESOURCES={centres:'Centres',assets:'Assets',assetReports:'Assets',workOrders:'Work Orders',notificationHistory:'Notifications',attendanceRecords:'Workforce',pmTasks:'Maintenance',projects:'Projects',documents:'Documents',incidents:'OHSA',inspections:'OHSA',internChecklists:'Users',doodleLinks:'Documents'};
 function filterAppDataForUser(user, data) {
   if(user.role==='admin' || user.role==='superadmin') return data;
+  if(user.role!=='hq'||(data.adminSettings?.permissionMatrixEnforced&&data.adminSettings.permissionMatrix?.hq?.Notifications?.view!==true))data.notificationHistory=[];
   const staffProfile=(data.users||[]).find(item=>String(item.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase());
   const attendanceRows=Array.isArray(data.attendanceRecords)?data.attendanceRecords:[];
   if(['hq'].includes(user.role)) data.attendanceRecords=attendanceRows;
@@ -259,6 +260,7 @@ function preserveHiddenAppData(user, beforeValue, nextValue) {
   const internSubmittedWorkOrders=user.role==='intern'&&Array.isArray(next.workOrders)?next.workOrders:[];
   const internSubmittedReports=user.role==='intern'&&Array.isArray(next.assetReports)?next.assetReports:[];
   const rules=before.adminSettings?.permissionMatrix&&before.adminSettings.permissionMatrix[user.role]||{};
+  if(user.role!=='hq'||(before.adminSettings?.permissionMatrixEnforced&&rules.Notifications?.view!==true))next.notificationHistory=before.notificationHistory||[];
   if(before.adminSettings?.permissionMatrixEnforced){
     for(const [field,resource] of Object.entries(APP_DATA_RESOURCES)) if(resource==='Workforce'&&!rules[resource]) continue; else if(!rules[resource]||rules[resource].view!==true) next[field]=before[field]|| (field==='internChecklists'?{}:[]);
   }
@@ -381,6 +383,7 @@ function appDataPermissionError(user, beforeValue, nextValue) {
       }
       for(const id of oldReportMap.keys()) if(!newReportMap.has(id)) return 'Interns cannot remove issue reports.';
     }
+    if(JSON.stringify(before.notificationHistory||[])!==JSON.stringify(next.notificationHistory||[])&&user.role!=='hq')return 'Only HQ/admin can record notification history.';
     if(!settings.permissionMatrixEnforced) return null;
     for(const [key,resource] of Object.entries(APP_DATA_RESOURCES)){
       if(user.role==='intern'&&['workOrders','assetReports'].includes(key)) continue;
@@ -762,11 +765,14 @@ async function handle(req, res) {
   if(req.method==='POST' && url.pathname==='/api/notifications/email'){
     const actor=requireUser(req,res,state);if(!actor)return;
     if(!['admin','superadmin','hq'].includes(String(actor.role||'').toLowerCase()))return respond(res,403,{error:'Only HQ/admin can send assignment notifications.'},apiHeaders);
+    const body=await readJson(req),to=String(body.to||'').trim(),subject=String(body.subject||'').trim().slice(0,250),text=String(body.text||'').trim().slice(0,10000),workOrderId=String(body.workOrderId||'').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!text||!workOrderId)return respond(res,400,{error:'A valid recipient, subject, message and work order are required.'},apiHeaders);
+    let appData={};try{appData=JSON.parse(state.storage?.['pid-fms-data-v2']||'{}');}catch{}
+    const workOrder=(appData.workOrders||[]).find(item=>String(item.id)===workOrderId),worker=(appData.users||[]).find(item=>String(item.id)===String(workOrder?.assignedUserId));
+    if(!workOrder||workOrder.status!=='open'||!worker||String(worker.email||'').toLowerCase()!==to.toLowerCase())return respond(res,403,{error:'Email is only available for the assigned worker after work order approval.'},apiHeaders);
     const host=String(process.env.SMTP_HOST||'').trim(),user=String(process.env.SMTP_USER||'').trim(),pass=String(process.env.SMTP_PASS||'');
     const port=Number(process.env.SMTP_PORT||587),from=String(process.env.SMTP_FROM||user).trim();
     if(!host||!user||!pass||!from)return respond(res,503,{error:'Email automation is not configured on this host.'},apiHeaders);
-    const body=await readJson(req),to=String(body.to||'').trim(),subject=String(body.subject||'').trim().slice(0,250),text=String(body.text||'').trim().slice(0,10000);
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!text)return respond(res,400,{error:'A valid recipient, subject and message are required.'},apiHeaders);
     try{
       const transporter=nodemailer.createTransport({host,port,secure:port===465,auth:{user,pass}});
       await transporter.sendMail({from,to,subject,text});
@@ -787,6 +793,10 @@ async function handle(req, res) {
     if(!/^[1-9]\d{7,14}$/.test(recipient)) return respond(res,400,{error:'A valid international assignee number is required.'},apiHeaders);
     const fields=['workOrderId','title','asset','priority','dueDate'].map(key=>String(body[key]||'').trim().slice(0,500));
     if(!fields[0]||!fields[1]) return respond(res,400,{error:'Work order ID and title are required.'},apiHeaders);
+    let appData={};try{appData=JSON.parse(state.storage?.['pid-fms-data-v2']||'{}');}catch{}
+    const workOrder=(appData.workOrders||[]).find(item=>String(item.id)===fields[0]),worker=(appData.users||[]).find(item=>String(item.id)===String(workOrder?.assignedUserId));
+    const workerPhone=String(worker?.phone||'').replace(/\D/g,'').replace(/^0/,'27');
+    if(!workOrder||workOrder.status!=='open'||!worker||worker.whatsappOptIn!==true||workerPhone!==recipient)return respond(res,403,{error:'WhatsApp requires an approved assignment, the assigned worker’s matching phone number, and recorded opt-in.'},apiHeaders);
     const payload={messaging_product:'whatsapp',to:recipient,type:'template',template:{name:template,language:{code:language},components:[{type:'body',parameters:fields.map(text=>({type:'text',text:text||'Not specified'}))}]}};
     try{
       const response=await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)});
