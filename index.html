@@ -445,6 +445,7 @@
         <div class="label" onclick="toggleNavGroup(this)">Operations<span class="chev">â–¾</span></div>
         <div class="navitem" data-view="assets" data-roles="admin,hq,centre,technician,intern"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13 12.5 20.5a1.5 1.5 0 0 1-2.1 0L3 13V4h9z"/><circle cx="7.4" cy="7.4" r="1.4"/></svg></span>Assets<span class="badge" id="nav-assets-count">0</span></div>
         <div class="navitem" data-view="asset-transfer" data-roles="admin,hq,centre,technician,intern"><span class="navicon">⇄</span>Asset transfer &amp; disposal register<span class="badge" id="nav-atd-count">0</span></div><div class="navitem" data-view="workforce-attendance" data-roles="admin,hq,centre,technician,intern"><span class="navicon">◷</span>Workforce Attendance</div>
+        <div class="navitem" data-view="notification-history" data-roles="admin,hq,superadmin"><span class="navicon">◷</span>Notification history</div>
         <div class="navitem" data-view="workorders" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10.5" x2="15" y2="10.5"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg></span>Work Orders<span class="badge" id="nav-wo-count">0</span></div>
         <div class="navitem" data-view="maintenance" data-roles="admin,hq,centre,technician"><span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.6"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.6"/></svg></span>Preventive Maintenance<span class="badge" id="nav-pm-count">0</span></div>
         <div class="navitem" data-view="contractors" data-roles="admin,hq,centre"><span class="navicon">♙</span>Contractors &amp; Contracts<span class="badge" id="nav-contractor-count">0</span></div>
@@ -645,6 +646,11 @@
         <tbody id="wo-body"></tbody></table>
         <div class="empty" id="wo-empty" style="display:none;"><div class="big">No work orders yet</div>Create one to allocate work to your team.</div>
       </div>
+    </section>
+
+    <section class="view" id="view-notification-history" data-roles="admin,hq,superadmin">
+      <div class="topbar"><div><h1>Work order notifications</h1><div class="meta">Delivery attempts for approved and reassigned work orders</div></div><button class="btn btn-ghost btn-sm" onclick="renderNotificationHistory()">Refresh</button></div>
+      <div class="panel"><table><thead><tr><th>When</th><th>Work order</th><th>Worker</th><th>Channel</th><th>Destination</th><th>Result</th><th>Details</th></tr></thead><tbody id="notification-history-body"></tbody></table><div class="empty" id="notification-history-empty" style="display:none;">No work order notifications have been recorded.</div></div>
     </section>
 
     <!-- CREATE WORK ORDER -->
@@ -1010,6 +1016,7 @@ function normalizeData(){
   if(!DATA.centres) DATA.centres = [];
   if(!Array.isArray(DATA.programmeReports)) DATA.programmeReports = [];
   if(!Array.isArray(DATA.attendanceRecords)) DATA.attendanceRecords = [];
+  if(!Array.isArray(DATA.notificationHistory)) DATA.notificationHistory = [];
   if(!DATA.pidReportLatestSnapshot||typeof DATA.pidReportLatestSnapshot!=='object') DATA.pidReportLatestSnapshot=null;
   if(!DATA.users) DATA.users = [];
   if(!DATA.waNumber) DATA.waNumber = '0634116900';
@@ -1065,7 +1072,7 @@ async function persist(){
 }
 function blankData(){
   return { orgName:'', msEmail:'', waNumber:'', requireMsAuthForAdmin:false, sharepointFolder:'PID Facilities Reports', sharepointSiteId:'', theme:'default',
-    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], pidReportLatestSnapshot:null, doodleLinks:[], documents:[], attendanceRecords:[],
+    centres:[], users:[], assets:[], assetTransfers:[], workOrders:[], pmTasks:[], contractors:[], slaRules:[], projects:[], incidents:[], inspections:[], assetReports:[], programmeReports:[], pidReportLatestSnapshot:null, doodleLinks:[], documents:[], attendanceRecords:[], notificationHistory:[],
     internChecklists:{}, seq:{asset:0,atd:0,wo:0,pm:0,proj:0,inc:0,insp:0,centre:0,user:0,ar:0,dl:0,doc:0,att:0} };
 }
 function nextId(prefix, key){ DATA.seq[key] = (DATA.seq[key]||0)+1; return prefix+'-'+String(DATA.seq[key]).padStart(4,'0'); }
@@ -2021,7 +2028,7 @@ function renderWorkOrderCreatePage(){
     ? '<option value="" disabled selected>Select a campus or facility</option>'+existing.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'</option>').join('')+'<option value="__other">Other facility</option>'
     : '<option value="site:UNISA Pretoria Campus" selected>UNISA Pretoria Campus</option><option value="site:UNISA Muckleneuk Campus">UNISA Muckleneuk Campus</option><option value="site:UNISA Sunnyside Campus">UNISA Sunnyside Campus</option><option value="site:UNISA Science Campus">UNISA Science Campus</option><option value="site:Other facility">Other facility</option>';
   const assignee=document.getElementById('page-wo-assignee');
-  const eligibleWorkers=(DATA.users||[]).filter(user=>['technician','centre'].includes(String(user.role||'').toLowerCase())&&user.email&&whatsappNumberDigits(user.phone));
+  const eligibleWorkers=(DATA.users||[]).filter(user=>['technician','centre'].includes(String(user.role||'').toLowerCase())&&user.email);
   assignee.required=true;
   assignee.innerHTML='<option value="" disabled selected>Select an assigned worker</option>'+eligibleWorkers.map(user=>'<option value="user:'+escapeHtml(user.id)+'">'+escapeHtml(user.name)+' · '+escapeHtml(user.email)+'</option>').join('');
   const assigneeHelp=document.getElementById('page-wo-assignee-help');
@@ -2045,7 +2052,7 @@ async function saveWorkOrderPage(){
   const facilityName=facility.options[facility.selectedIndex]?.text||'';
   const centre=centreById(facilityValue);
   const worker=assigneeValue.startsWith('user:')?userById(assigneeValue.slice(5)):null;
-  if(!worker||!worker.email||!whatsappNumberDigits(worker.phone)){showToast('Select a worker with both email and WhatsApp contact details');return;}
+  if(!worker||!worker.email){showToast('Select a worker with an email address. WhatsApp is sent only when the worker has opted in and has a phone number.');return;}
   const assignedTo=worker.name;
   const assetText=document.getElementById('page-wo-asset').value.trim();
   const asset=assetByEntry(assetText);
@@ -2149,7 +2156,7 @@ async function approveWO(id){
   if(!isWorkOrderApprover()){showToast('Only HQ/admin can approve work orders');return;}
   const wo=DATA.workOrders.find(w=>w.id===id);if(!wo||wo.status!=='pending_approval')return;
   const worker=userById(wo.assignedUserId);
-  if(!worker||!worker.email||!whatsappNumberDigits(worker.phone)){showToast('Add the assigned worker email and WhatsApp number before approval');return;}
+  if(!worker||!worker.email){showToast('Add the assigned worker email before approval. WhatsApp requires a phone number and opt-in.');return;}
   wo.status='open';wo.approvedOn=new Date().toISOString().slice(0,10);wo.approvedBy=currentDirectoryUser()?.name||state.role;
   await persist();renderAll();showToast('Approved - '+wo.id+' is now visible to '+worker.name);await notifyAssignee(wo.id);
 }
@@ -2167,6 +2174,16 @@ function cycleWOStatus(id){
   wo.status = order[(order.indexOf(wo.status)+1)%order.length];
   persist(); renderAll();
 }
+function logWorkOrderNotification(wo,worker,channel,destination,status,detail){
+  if(!Array.isArray(DATA.notificationHistory))DATA.notificationHistory=[];
+  DATA.notificationHistory.unshift({id:'NTF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),at:new Date().toISOString(),workOrderId:wo.id,workOrderTitle:wo.title,workerName:worker?.name||wo.assignedTo||'Unknown',channel,destination:destination||'',status,detail:detail||''});
+  DATA.notificationHistory=DATA.notificationHistory.slice(0,500);
+  void persist();
+}
+function renderNotificationHistory(){
+  const body=document.getElementById('notification-history-body'),empty=document.getElementById('notification-history-empty');if(!body||!DATA)return;
+  const rows=DATA.notificationHistory||[];body.innerHTML=rows.map(row=>'<tr><td>'+escapeHtml(new Date(row.at).toLocaleString())+'</td><td>'+escapeHtml(row.workOrderId+' · '+row.workOrderTitle)+'</td><td>'+escapeHtml(row.workerName)+'</td><td>'+escapeHtml(row.channel)+'</td><td>'+escapeHtml(row.destination||'—')+'</td><td><span class="status-pill '+(row.status==='SENT'?'status-open':row.status==='FAILED'?'status-overdue':'status-pending')+'">'+escapeHtml(row.status)+'</span></td><td>'+escapeHtml(row.detail||'')+'</td></tr>').join('');if(empty)empty.style.display=rows.length?'none':'block';
+}
 async function notifyByEmail(id, automatic=false){
   const wo = DATA.workOrders.find(w=>w.id===id); if(!wo) return;
   const worker = userById(wo.assignedUserId);
@@ -2180,10 +2197,10 @@ async function notifyByEmail(id, automatic=false){
     `Details: ${wo.description||'-'}\n\n- Sent from PID Facilities Management System`;
 
   if(automatic){
-    const response=await apiFetch('/api/notifications/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,subject,text:body})});
+    const response=await apiFetch('/api/notifications/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,subject,text:body,workOrderId:wo.id})});
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||'Automatic email was not sent.');
-    showToast('Email sent to '+to);return;
+    logWorkOrderNotification(wo,worker,'Email',to,'SENT','Delivered through configured SMTP.'); showToast('Email sent to '+to);return;
   }
   if(msAuth.canSendMail){
     const sent = await trySendGraphMail(to, subject, body);
@@ -2197,21 +2214,23 @@ async function notifyByEmail(id, automatic=false){
 }
 async function notifyByWhatsApp(id){
   const wo=DATA.workOrders.find(item=>item.id===id); if(!wo) return;
-  const worker=userById(wo.assignedUserId); const phone=wo.waNumber||(worker&&worker.phone)||'';
+  const worker=userById(wo.assignedUserId); const phone=(worker&&worker.phone)||wo.waNumber||'';
   const recipient=whatsappNumberDigits(phone);
-  if(!recipient){ showToast('Automatic WhatsApp unavailable. Add a mobile number to the assignee.'); return; }
+  if(!worker?.whatsappOptIn){logWorkOrderNotification(wo,worker,'WhatsApp',phone,'SKIPPED','Worker has not opted in to WhatsApp alerts.');return;}
+  if(!recipient){logWorkOrderNotification(wo,worker,'WhatsApp',phone,'SKIPPED','No valid worker phone number on file.');return;}
   try{
     const response=await apiFetch('/api/notifications/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       recipient,workOrderId:wo.id,title:wo.title,asset:(assetById(wo.assetId)||{}).name||'Not specified',priority:wo.priority,dueDate:wo.dueDate||'Not specified'
     })});
     const result=await response.json();
     if(!response.ok) throw new Error(result.error||'WhatsApp notification was not sent.');
-    showToast('WhatsApp assignment notification sent to '+phone);
-  }catch(error){ showToast(error.message||'WhatsApp notification failed.'); }
+    logWorkOrderNotification(wo,worker,'WhatsApp',phone,'SENT','Accepted by WhatsApp provider.'); showToast('WhatsApp assignment notification sent to '+phone);
+  }catch(error){logWorkOrderNotification(wo,worker,'WhatsApp',phone,'FAILED',error.message||'Provider error');showToast(error.message||'WhatsApp notification failed.');}
 }
 async function notifyAssignee(id){
   const wo=DATA.workOrders.find(item=>item.id===id);if(!wo||wo.status!=='open')return;
   const results=await Promise.allSettled([notifyByEmail(id,true),notifyByWhatsApp(id)]);
+  results.forEach(result=>{if(result.status==='rejected')logWorkOrderNotification(wo,userById(wo.assignedUserId),'Email',(userById(wo.assignedUserId)||{}).email||'','FAILED',result.reason?.message||'Email provider error');});
   if(results.some(result=>result.status==='rejected'))showToast('Work order approved, but one or more notifications failed. Check integration settings.');
 }
 function openWorkOrderWhatsApp(id){
@@ -2667,7 +2686,7 @@ ADMIN_SETTING_GROUPS.find(group=>group.id==='workorders').fields.push(
   ['assignmentEmailSubject','Assignment email subject','text','PID Facilities: Work order assigned'],
   ['assignmentEmailFooter','Assignment email footer','textarea','PID Facilities Management']
 );
-const ADMIN_PERMISSION_RESOURCES=['Centres','Assets','Work Orders','Workforce','Maintenance','Projects','Contractors','Procurement','Documents','OHSA','Reports','Users'];
+const ADMIN_PERMISSION_RESOURCES=['Centres','Assets','Work Orders','Workforce','Maintenance','Projects','Contractors','Procurement','Documents','OHSA','Reports','Users','Notifications'];
 const ADMIN_PERMISSION_ACTIONS=['view','create','edit','delete','approve'];
 function defaultAdminSettings(){
   const settings={permissionMatrixEnforced:false};
@@ -2676,7 +2695,7 @@ function defaultAdminSettings(){
   ['superadmin','admin','hq','centre','technician','intern','viewer','auditor'].forEach(role=>{
     settings.permissionMatrix[role]={};
     ADMIN_PERMISSION_RESOURCES.forEach(resource=>{
-      settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||(role==='intern'&&resource==='Assets'&&['view','create','edit'].includes(action))||(resource==='Workforce'&&['centre','technician','intern'].includes(role)&&['view','create','edit'].includes(action))||action==='view']));
+      settings.permissionMatrix[role][resource]=Object.fromEntries(ADMIN_PERMISSION_ACTIONS.map(action=>[action,role==='admin'||role==='superadmin'||(role==='intern'&&resource==='Assets'&&['view','create','edit'].includes(action))||(resource==='Workforce'&&['centre','technician','intern'].includes(role)&&['view','create','edit'].includes(action))||(resource==='Notifications'&&role==='hq'&&['view','create'].includes(action))||((role==='hq'||role==='centre'||role==='technician'||role==='intern'||role==='viewer'||role==='auditor')&&resource==='Notifications'&&action==='view'&&role==='hq')||action==='view']));
     });
   });
   return settings;
@@ -2731,7 +2750,7 @@ function applyPermissionVisibility(){
   const permissions=DATA&&DATA.adminSettings&&DATA.adminSettings.permissionMatrix&&DATA.adminSettings.permissionMatrix[state.role];
   if(!permissions) return;
   const enforced=!!DATA.adminSettings.permissionMatrixEnforced;
-  const viewResources={centres:'Centres',assets:'Assets',workorders:'Work Orders','workforce-attendance':'Workforce',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports','pid-report-studio':'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
+  const viewResources={centres:'Centres',assets:'Assets','notification-history':'Notifications',workorders:'Work Orders','workforce-attendance':'Workforce',maintenance:'Maintenance',projects:'Projects',ohsa:'OHSA',reports:'Reports','pid-report-studio':'Reports',documents:'Documents',admin:'Users','admin-settings':'Users'};
   document.querySelectorAll('.navitem[data-view]').forEach(item=>{
     const resource=viewResources[item.dataset.view];
     if(resource&&permissions[resource]) item.classList.toggle('permission-hidden',enforced&&!permissions[resource].view);
@@ -2802,6 +2821,7 @@ function openUserModal(){
     <div class="row2">
       <div class="field"><label>Email</label><input id="f-email" type="email" required placeholder="name@company.co.za"></div>
       <div class="field"><label>Phone (WhatsApp)</label><input id="f-phone" placeholder="+27 82 000 0000"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;"><input id="f-whatsapp-opt-in" type="checkbox"> Worker consents to WhatsApp work assignment alerts</label>
     </div>
     <p style="font-size:12px;color:var(--ink-soft);margin:-4px 0 14px;">A random temporary password will be generated and shown once after creation. The user must change it at first sign-in.</p>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveUser()">Add user</button></div>
@@ -2827,7 +2847,7 @@ async function saveUser(){
   if(!name || !email){ showToast('Name and email are required'); return; }
   const role=document.getElementById('f-role').value;
   if(DATA.users.some(item=>item.email&&item.email.toLowerCase()===email.toLowerCase())){ showToast('That email is already in the user directory'); return; }
-  const user={id:nextId('USR','user'),name,role,centreId:document.getElementById('f-centre').value,email,phone:document.getElementById('f-phone').value.trim()};
+  const user={id:nextId('USR','user'),name,role,centreId:document.getElementById('f-centre').value,email,phone:document.getElementById('f-phone').value.trim(),whatsappOptIn:document.getElementById('f-whatsapp-opt-in').checked};
   try{
     const existing=state.authUsers.find(item=>item.email.toLowerCase()===email.toLowerCase());
     const response=existing
@@ -2859,7 +2879,7 @@ function editDirectoryUser(id){
   openModal(`<h3>Edit user profile</h3><div class="modal-sub">Changes to a linked account update its sign-in name and role.</div>
     <div class="field"><label>Name</label><input id="profile-name" value="${escapeHtml(user.name)}"></div>
     <div class="row2"><div class="field"><label>Role</label><select id="profile-role">${adminRoleOptions(user.role)}</select></div><div class="field"><label>Centre</label><select id="profile-centre">${centreOptions(user.centreId)}</select></div></div>
-    <div class="row2"><div class="field"><label>Email</label><input value="${escapeHtml(user.email||'')}" readonly></div><div class="field"><label>Phone</label><input id="profile-phone" value="${escapeHtml(user.phone||'')}"></div></div>
+    <div class="row2"><div class="field"><label>Email</label><input value="${escapeHtml(user.email||'')}" readonly></div><div class="field"><label>Phone</label><input id="profile-phone" value="${escapeHtml(user.phone||'')}"></div></div><label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0 14px;"><input id="profile-whatsapp-opt-in" type="checkbox" ${user.whatsappOptIn===true?'checked':''}> Worker consents to WhatsApp work assignment alerts</label>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveDirectoryUser('${id}')">Save profile</button></div>`);
   document.getElementById('profile-role').value=user.role;
 }
@@ -2874,7 +2894,7 @@ async function saveDirectoryUser(id){
       const result=await response.json(); if(!response.ok) throw new Error(result.error||'Could not update login account.');
       state.authUsers=state.authUsers.map(item=>item.id===account.id?result.user:item);
     }
-    user.name=name; user.role=role; user.centreId=document.getElementById('profile-centre').value; user.phone=document.getElementById('profile-phone').value.trim();
+    user.name=name; user.role=role; user.centreId=document.getElementById('profile-centre').value; user.phone=document.getElementById('profile-phone').value.trim(); user.whatsappOptIn=document.getElementById('profile-whatsapp-opt-in').checked;
     await persist(); closeModal(); renderAll(); showToast('User profile updated');
   }catch(error){ showToast(error.message); }
 }
@@ -3648,7 +3668,8 @@ function renderAll(){
   renderCentres();
   renderAssets();
   renderAssetTransfers();
-  renderWorkOrders();  renderAssets();
+  renderWorkOrders();
+  renderNotificationHistory();  renderAssets();
   renderWorkOrders();
   renderWorkOrderCreatePage();
   renderWorkforceAttendance();
