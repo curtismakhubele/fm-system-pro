@@ -2174,11 +2174,12 @@ function cycleWOStatus(id){
   wo.status = order[(order.indexOf(wo.status)+1)%order.length];
   persist(); renderAll();
 }
+let notificationPersistQueue=Promise.resolve();
 function logWorkOrderNotification(wo,worker,channel,destination,status,detail){
   if(!Array.isArray(DATA.notificationHistory))DATA.notificationHistory=[];
   DATA.notificationHistory.unshift({id:'NTF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),at:new Date().toISOString(),workOrderId:wo.id,workOrderTitle:wo.title,workerName:worker?.name||wo.assignedTo||'Unknown',channel,destination:destination||'',status,detail:detail||''});
   DATA.notificationHistory=DATA.notificationHistory.slice(0,500);
-  void persist();
+  notificationPersistQueue=notificationPersistQueue.then(()=>persist()).catch(()=>false);
 }
 function renderNotificationHistory(){
   const body=document.getElementById('notification-history-body'),empty=document.getElementById('notification-history-empty');if(!body||!DATA)return;
@@ -2228,7 +2229,7 @@ async function notifyByWhatsApp(id){
   }catch(error){logWorkOrderNotification(wo,worker,'WhatsApp',phone,'FAILED',error.message||'Provider error');showToast(error.message||'WhatsApp notification failed.');}
 }
 async function notifyAssignee(id){
-  const wo=DATA.workOrders.find(item=>item.id===id);if(!wo||wo.status!=='open')return;
+  const wo=DATA.workOrders.find(item=>item.id===id);if(!wo||!['open','in_progress','on_hold'].includes(wo.status))return;
   const results=await Promise.allSettled([notifyByEmail(id,true),notifyByWhatsApp(id)]);
   results.forEach(result=>{if(result.status==='rejected')logWorkOrderNotification(wo,userById(wo.assignedUserId),'Email',(userById(wo.assignedUserId)||{}).email||'','FAILED',result.reason?.message||'Email provider error');});
   if(results.some(result=>result.status==='rejected'))showToast('Work order approved, but one or more notifications failed. Check integration settings.');
