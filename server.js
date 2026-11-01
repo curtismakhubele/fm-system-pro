@@ -769,7 +769,7 @@ async function handle(req, res) {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!text||!workOrderId)return respond(res,400,{error:'A valid recipient, subject, message and work order are required.'},apiHeaders);
     let appData={};try{appData=JSON.parse(state.storage?.['pid-fms-data-v2']||'{}');}catch{}
     const workOrder=(appData.workOrders||[]).find(item=>String(item.id)===workOrderId),worker=(appData.users||[]).find(item=>String(item.id)===String(workOrder?.assignedUserId));
-    if(!workOrder||workOrder.status!=='open'||!worker||String(worker.email||'').toLowerCase()!==to.toLowerCase())return respond(res,403,{error:'Email is only available for the assigned worker after work order approval.'},apiHeaders);
+    if(!workOrder||!['open','in_progress','on_hold'].includes(workOrder.status)||!worker||String(worker.email||'').toLowerCase()!==to.toLowerCase())return respond(res,403,{error:'Email is only available for the assigned worker after work order approval.'},apiHeaders);
     const host=String(process.env.SMTP_HOST||'').trim(),user=String(process.env.SMTP_USER||'').trim(),pass=String(process.env.SMTP_PASS||'');
     const port=Number(process.env.SMTP_PORT||587),from=String(process.env.SMTP_FROM||user).trim();
     if(!host||!user||!pass||!from)return respond(res,503,{error:'Email automation is not configured on this host.'},apiHeaders);
@@ -796,7 +796,7 @@ async function handle(req, res) {
     let appData={};try{appData=JSON.parse(state.storage?.['pid-fms-data-v2']||'{}');}catch{}
     const workOrder=(appData.workOrders||[]).find(item=>String(item.id)===fields[0]),worker=(appData.users||[]).find(item=>String(item.id)===String(workOrder?.assignedUserId));
     const workerPhone=String(worker?.phone||'').replace(/\D/g,'').replace(/^0/,'27');
-    if(!workOrder||workOrder.status!=='open'||!worker||worker.whatsappOptIn!==true||workerPhone!==recipient)return respond(res,403,{error:'WhatsApp requires an approved assignment, the assigned worker’s matching phone number, and recorded opt-in.'},apiHeaders);
+    if(!workOrder||!['open','in_progress','on_hold'].includes(workOrder.status)||!worker||worker.whatsappOptIn!==true||workerPhone!==recipient)return respond(res,403,{error:'WhatsApp requires an approved assignment, the assigned worker’s matching phone number, and recorded opt-in.'},apiHeaders);
     const payload={messaging_product:'whatsapp',to:recipient,type:'template',template:{name:template,language:{code:language},components:[{type:'body',parameters:fields.map(text=>({type:'text',text:text||'Not specified'}))}]}};
     try{
       const response=await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)});
