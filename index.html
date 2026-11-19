@@ -596,7 +596,7 @@
       <div class="kpi-row" id="atd-kpis"></div>
       <div class="panel">
         <div class="asset-register-filters"><input id="atd-search" placeholder="Search reference, asset, reason or destination…" aria-label="Search transfer and disposal records"><select id="atd-action-filter" aria-label="Filter by action"><option value="">All actions</option><option>Transfer</option><option>Disposal</option></select><select id="atd-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option>Requested</option><option>Approved</option><option>In progress</option><option>Completed</option><option>Rejected</option></select></div>
-        <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Asset</th><th>Action</th><th>Request date</th><th>Destination / method</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody id="atd-body"></tbody></table><div class="empty" id="atd-empty" style="display:none;"><div class="big">No transfer or disposal records</div>Submit a request to start the register.</div></div>
+        <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Asset</th><th>Action</th><th>Request date</th><th>Destination / method</th><th>Photo evidence</th><th>Completion evidence</th><th>Approval</th><th>Status</th><th>Actions</th></tr></thead><tbody id="atd-body"></tbody></table><div class="empty" id="atd-empty" style="display:none;"><div class="big">No transfer or disposal records</div>Submit a request to start the register.</div></div>
       </div>
       <div class="note" style="margin-top:10px;">Only Admin/HQ can approve or reject requests. Completing an approved transfer updates the linked asset location and assignment; completing a disposal marks the asset decommissioned while retaining its record.</div>
     </section>
@@ -1773,6 +1773,23 @@ function assetsForCurrentRole(){
   if(state.role==='intern'){const intern=currentInternProfile();return intern&&intern.centreId?all.filter(asset=>asset.centreId===intern.centreId):[];}
   return all.filter(asset=>inFilter(asset.centreId));
 }
+const ASSET_EVIDENCE_LIMIT_BYTES=500*1024;
+function readAssetEvidence(inputId,required){
+ const input=document.getElementById(inputId),file=input&&input.files&&input.files[0];
+ if(!file){if(required)showToast('Attach a photo as evidence');return Promise.resolve(null);}
+ if(!file.type.startsWith('image/')){showToast('Choose an image file');input.value='';return Promise.resolve(null);}
+ if(file.size>ASSET_EVIDENCE_LIMIT_BYTES){showToast('Choose an image smaller than 500 KB');input.value='';return Promise.resolve(null);}
+ return new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve({name:file.name,mimeType:file.type,dataUrl:reader.result});reader.onerror=()=>{showToast('Could not read that image');resolve(null);};reader.readAsDataURL(file);});
+}
+function assetEvidencePreview(input,previewId){
+ const file=input&&input.files&&input.files[0],preview=document.getElementById(previewId);if(!preview)return;
+ if(!file){preview.innerHTML='';return;}
+ if(!file.type.startsWith('image/')||file.size>ASSET_EVIDENCE_LIMIT_BYTES){showToast('Choose an image smaller than 500 KB');input.value='';preview.innerHTML='';return;}
+ const reader=new FileReader();reader.onload=()=>{preview.innerHTML='<img src="'+reader.result+'" alt="Photo evidence preview" style="max-width:180px;max-height:120px;border-radius:6px;border:1px solid var(--border)">';};reader.readAsDataURL(file);
+}
+function assetEvidenceLink(evidence,label){
+ return evidence&&evidence.dataUrl?'<a href="'+evidence.dataUrl+'" target="_blank" rel="noopener">'+escapeHtml(label||evidence.name||'View photo')+'</a>':'—';
+}
 function assetFormMarkup(prefix,a={},lockedCentreId=''){
  const disciplines=configuredAssetDisciplines(),discipline=a.discipline||(disciplines.includes(a.category)?a.category:(disciplines[0]||'General items')),status=a.status||'operational',condition=a.condition||'Good',addedBy=a.id?(a.createdByName||a.addedByName||(a.createdBy?userById(a.createdBy)?.name:'')||'Unknown'):(currentInternProfile()?.name||msAuth.user?.name||(msAuth.user?.id?userById(msAuth.user.id)?.name:'')||'Current user');
  const statuses=[['operational','Operational'],['maintenance','Under maintenance'],['down','Faulty'],['decommissioned','Decommissioned']].filter(([value])=>!currentInternProfile()||value!=='decommissioned'),conditions=adminSettingList('assetConditions',['New','Good','Fair','Poor','Unserviceable']);if(condition&&!conditions.includes(condition))conditions.unshift(condition);
@@ -1782,7 +1799,8 @@ function assetFormMarkup(prefix,a={},lockedCentreId=''){
  '<div class="row2"><div class="field"><label>Building / block</label><input id="'+prefix+'-building" value="'+escapeAttr(a.building||'')+'"></div><div class="field"><label>Floor / room / area</label><input id="'+prefix+'-location" value="'+escapeAttr(a.location||'')+'"></div></div>'+
  '<div class="row2"><div class="field"><label>Condition</label><select id="'+prefix+'-condition">'+conditions.map(x=>'<option '+(x===condition?'selected':'')+'>'+escapeHtml(x)+'</option>').join('')+'</select></div><div class="field"><label>Operational status</label><select id="'+prefix+'-status">'+statuses.map(([v,l])=>'<option value="'+v+'" '+(v===status?'selected':'')+'>'+l+'</option>').join('')+'</select></div></div>'+
  '<div class="row2"><div class="field"><label>Asset tag / serial number</label><input id="'+prefix+'-serial" value="'+escapeAttr(a.serialNumber||a.tag||'')+'" placeholder="Leave blank to auto-generate '+escapeAttr(DATA.adminSettings.assetTagPrefix||'AST')+'0001"></div><div class="field"><label>Date recorded</label><input id="'+prefix+'-recorded" type="date" value="'+escapeAttr(a.recordedDate||a.purchaseDate||'')+'"></div></div>'+
- '<div class="row2"><div class="field"><label>Added by</label><input value="'+escapeAttr(addedBy)+'" readonly></div><div class="field"><label>Notes</label><input id="'+prefix+'-notes" value="'+escapeAttr(a.notes||'')+'"></div></div>';
+ '<div class="row2"><div class="field"><label>Added by</label><input value="'+escapeAttr(addedBy)+'" readonly></div><div class="field"><label>Notes</label><input id="'+prefix+'-notes" value="'+escapeAttr(a.notes||'')+'"></div></div>'+
+ '<div class="field"><label>Asset photo evidence '+(a.id?'(optional replacement) *':'*')+'</label>'+(a.imageEvidence?'<div style="margin:6px 0"><img src="'+a.imageEvidence.dataUrl+'" alt="Current asset evidence" style="max-width:180px;max-height:120px;border-radius:6px"></div>':'')+'<input id="'+prefix+'-image" type="file" accept="image/*" capture="environment" onchange="assetEvidencePreview(this,\''+prefix+'-image-preview\')"><span class="field-hint">Attach a clear photo of the asset. JPEG or PNG, up to 500 KB.</span><div id="'+prefix+'-image-preview" style="margin-top:8px"></div></div>';
 }
 function editAsset(id){
  const asset=DATA.assets.find(item=>item.id===id);if(!asset||!requireAssetPermission('edit',asset.centreId))return;
@@ -1791,8 +1809,9 @@ function editAsset(id){
 }
 
 function escapeAttr(v){return String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function updateAsset(id){
+async function updateAsset(id){
  const asset=DATA.assets.find(item=>item.id===id);if(!asset)return;
+ const evidence=await readAssetEvidence('e-image',false);if(evidence)asset.imageEvidence=evidence;
  const centreId=document.getElementById('e-centre').value;
  if(!requireAssetPermission('edit',asset.centreId)||(!isAssetAdmin()&&centreId!==asset.centreId))return;
  const serialInput=document.getElementById('e-serial').value.trim(),name=document.getElementById('e-name').value.trim();
@@ -1820,8 +1839,9 @@ function openAssetModal(){
  openModal('<h3>Register asset</h3><div class="modal-sub">Add an asset to '+escapeHtml(intern?(centreById(centreId)||{}).name:'the shared register')+'</div>'+assetFormMarkup('f',{},intern?centreId:'')+'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAsset()">Register asset</button></div>');
 }
 
-function saveAsset(){
+async function saveAsset(){
  if(DATA.adminSettings.maintenanceMode&&!['admin','superadmin'].includes(state.role)){showToast('Asset updates are paused during maintenance.');return;}
+ const evidence=await readAssetEvidence('f-image',true);if(!evidence)return;
  const centreId=document.getElementById('f-centre').value;
  if(!requireAssetPermission('create',centreId))return;
  const name=document.getElementById('f-name').value.trim(),serialInput=document.getElementById('f-serial').value.trim();
@@ -1830,8 +1850,8 @@ function saveAsset(){
  const serial=serialInput||generateAssetTag();
  if(DATA.assets.some(asset=>String(asset.serialNumber||asset.tag||'').toLowerCase()===serial.toLowerCase())){showToast('That serial number/TAG already exists');return;}
  const discipline=document.getElementById('f-discipline').value,recorded=document.getElementById('f-recorded').value||'',intern=currentInternProfile(),creatorName=intern?.name||msAuth.user?.name||(msAuth.user?.id?userById(msAuth.user.id)?.name:'')||'Administrator';
- DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial,category:discipline,discipline,centreId,quantity:Math.max(1,Math.floor(Number(document.getElementById('f-quantity').value)||1)),building:document.getElementById('f-building').value.trim(),location:document.getElementById('f-location').value.trim()||'-',condition:document.getElementById('f-condition').value,status:document.getElementById('f-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('f-notes').value.trim(),createdBy:intern?.id||msAuth.user?.id||'',createdByName:creatorName,createdAt:new Date().toISOString()});
- persist();closeModal();renderAll();showToast('Asset registered');
+ DATA.assets.push({id:nextId('AST','asset'),name,serialNumber:serial,tag:serial,imageEvidence:evidence,category:discipline,discipline,centreId,quantity:Math.max(1,Math.floor(Number(document.getElementById('f-quantity').value)||1)),building:document.getElementById('f-building').value.trim(),location:document.getElementById('f-location').value.trim()||'-',condition:document.getElementById('f-condition').value,status:document.getElementById('f-status').value,purchaseDate:recorded,recordedDate:recorded,notes:document.getElementById('f-notes').value.trim(),createdBy:intern?.id||msAuth.user?.id||'',createdByName:creatorName,createdAt:new Date().toISOString()});
+ persist();closeModal();renderAll();showToast('Asset registered with photo evidence');
 }
 
 function deleteAsset(id){ if(!requireAssetAdmin()) return; DATA.assets = DATA.assets.filter(a=>a.id!==id); persist(); renderAll(); showToast('Asset removed'); }
@@ -1872,6 +1892,7 @@ function openAssetTransferRequest(){
     '<div id="atd-transfer-fields"><h4>Transfer destination</h4><div class="field"><label>Destination location / custodian *</label><input id="atd-transfer-to" placeholder="Building, room or custodian"></div><div class="row2"><div class="field"><label>Destination centre</label><select id="atd-transfer-centre">'+centreOpts+'</select></div><div class="field"><label>Assigned worker</label><select id="atd-transfer-worker">'+workerOpts+'</select></div></div><div class="field"><label>Transfer date</label><input id="atd-transfer-date" type="date"></div></div>'+
     '<div id="atd-disposal-fields" style="display:none;"><h4>Disposal details</h4><div class="row2"><div class="field"><label>Disposal method *</label><select id="atd-method"><option value="">Select method</option><option>Public auction</option><option>Tender / quotation</option><option>Sale to staff</option><option>Donation</option><option>Trade-in</option><option>Scrapping / destruction</option><option>Recycling / e-waste</option><option>Write-off (loss / theft)</option></select></div><div class="field"><label>Expected proceeds (R)</label><input id="atd-proceeds" type="number" min="0" step="0.01"></div></div><div class="field"><label>Target disposal date</label><input id="atd-disposal-date" type="date"></div></div>'+
     '<div class="field"><label>Remarks</label><textarea id="atd-remarks" placeholder="Optional supporting notes"></textarea></div>'+
+    '<div class="field"><label>Photo evidence * (required)</label><input id="atd-evidence" type="file" accept="image/*" capture="environment" onchange="assetEvidencePreview(this,\'atd-evidence-preview\')"><span class="field-hint">Attach a photo of the item and its current condition or movement. Up to 500 KB.</span><div id="atd-evidence-preview" style="margin-top:8px"></div></div>'+
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveAssetTransferRequest()">Submit request</button></div>');
   updateAssetTransferPreview();syncAssetTransferFields();
 }
@@ -1886,19 +1907,30 @@ function syncAssetTransferFields(){
 async function saveAssetTransferRequest(){
   const asset=assetById(document.getElementById('atd-asset')?.value),action=document.getElementById('atd-action')?.value||'Transfer',reason=document.getElementById('atd-reason')?.value.trim()||'';
   if(!asset){showToast('Select an asset');return;}if(!reason){showToast('Enter the reason for this request');return;}
+  const evidence=await readAssetEvidence('atd-evidence',true);if(!evidence)return;
   if(action==='Transfer'&&!document.getElementById('atd-transfer-to')?.value.trim()){showToast('Enter the transfer destination');return;}
   if(action==='Disposal'&&!document.getElementById('atd-method')?.value){showToast('Select a disposal method');return;}
-  const record={id:nextId('ATD','atd'),ref:'ATD-'+String(DATA.seq.atd).padStart(4,'0'),assetId:asset.id,assetNo:asset.serialNumber||asset.tag||asset.id,desc:asset.name||'',category:asset.discipline||asset.category||'',serial:asset.serialNumber||asset.tag||'',location:[asset.building,asset.location].filter(Boolean).join(' / '),custodian:(userById(asset.assignedWorkerId)||{}).name||'',acqDate:asset.recordedDate||asset.purchaseDate||'',cost:Number(asset.value)||0,condition:asset.condition||'',action,reason,reqDate:document.getElementById('atd-req-date')?.value||assetTransferDate(),requestedBy:document.getElementById('atd-requested-by')?.value.trim()||'',approvedBy:'',apprDate:'',status:'Requested',transferTo:action==='Transfer'?document.getElementById('atd-transfer-to')?.value.trim()||'':'',transferCentreId:action==='Transfer'?document.getElementById('atd-transfer-centre')?.value||'':'',transferWorkerId:action==='Transfer'?document.getElementById('atd-transfer-worker')?.value||'':'',transferDate:action==='Transfer'?document.getElementById('atd-transfer-date')?.value||'':'',method:action==='Disposal'?document.getElementById('atd-method')?.value||'':'',disposalDate:action==='Disposal'?document.getElementById('atd-disposal-date')?.value||'':'',proceeds:action==='Disposal'?Number(document.getElementById('atd-proceeds')?.value)||0:0,remarks:document.getElementById('atd-remarks')?.value.trim()||'',appliedAt:''};
+  const record={id:nextId('ATD','atd'),ref:'ATD-'+String(DATA.seq.atd).padStart(4,'0'),assetId:asset.id,assetNo:asset.serialNumber||asset.tag||asset.id,desc:asset.name||'',category:asset.discipline||asset.category||'',serial:asset.serialNumber||asset.tag||'',location:[asset.building,asset.location].filter(Boolean).join(' / '),custodian:(userById(asset.assignedWorkerId)||{}).name||'',acqDate:asset.recordedDate||asset.purchaseDate||'',cost:Number(asset.value)||0,condition:asset.condition||'',action,reason,reqDate:document.getElementById('atd-req-date')?.value||assetTransferDate(),requestedBy:document.getElementById('atd-requested-by')?.value.trim()||'',approvedBy:'',apprDate:'',status:'Requested',transferTo:action==='Transfer'?document.getElementById('atd-transfer-to')?.value.trim()||'':'',transferCentreId:action==='Transfer'?document.getElementById('atd-transfer-centre')?.value||'':'',transferWorkerId:action==='Transfer'?document.getElementById('atd-transfer-worker')?.value||'':'',transferDate:action==='Transfer'?document.getElementById('atd-transfer-date')?.value||'':'',method:action==='Disposal'?document.getElementById('atd-method')?.value||'':'',disposalDate:action==='Disposal'?document.getElementById('atd-disposal-date')?.value||'':'',proceeds:action==='Disposal'?Number(document.getElementById('atd-proceeds')?.value)||0:0,remarks:document.getElementById('atd-remarks')?.value.trim()||'',evidence,resolutionEvidence:null,appliedAt:''};
   DATA.assetTransfers.push(record);await persist();closeModal();renderAll();showToast('Request submitted for Admin/HQ approval');
 }
-async function reviewAssetTransfer(action,id){
+function openAssetTransferCompletion(id){
+ const record=(DATA.assetTransfers||[]).find(x=>x.id===id);if(!record)return;
+ openModal('<h3>Complete '+escapeHtml(record.action.toLowerCase())+'</h3><div class="modal-sub">Add a photo showing the completed transfer or disposal.</div><div class="field"><label>Completion photo evidence *</label><input id="atd-resolution-evidence" type="file" accept="image/*" capture="environment" onchange="assetEvidencePreview(this,\'atd-resolution-preview\')"><span class="field-hint">Required to close this register item. Up to 500 KB.</span><div id="atd-resolution-preview" style="margin-top:8px"></div></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="submitAssetTransferCompletion(\''+escapeAttr(id)+'\')">Save evidence and complete</button></div>');
+}
+async function submitAssetTransferCompletion(id){
+ const evidence=await readAssetEvidence('atd-resolution-evidence',true);if(!evidence)return;
+ await reviewAssetTransfer('complete',id,evidence);
+}
+async function reviewAssetTransfer(action,id,resolutionEvidence=null){
   if(!canReviewAssetTransfer()){showToast('Only Admin/HQ can review asset transfer and disposal requests');return;}
   const record=(DATA.assetTransfers||[]).find(x=>x.id===id);if(!record)return;const actor=msAuth.user&&(msAuth.user.name||msAuth.user.email)||state.role;
   if(action==='approve'&&record.status==='Requested'){record.status='Approved';record.approvedBy=actor;record.apprDate=assetTransferDate();}
   else if(action==='reject'&&record.status==='Requested'){record.status='Rejected';record.approvedBy=actor;record.apprDate=assetTransferDate();}
   else if(action==='start'&&record.status==='Approved'){record.status='In progress';}
   else if(action==='complete'&&record.status==='In progress'){
+    if(!resolutionEvidence){showToast('Add photo evidence before completing this request');return;}
     if(!confirm('Complete this '+record.action.toLowerCase()+' and update the linked asset record?'))return;
+    record.resolutionEvidence=resolutionEvidence;
     const asset=assetById(record.assetId);
     if(asset&&!record.appliedAt){if(record.action==='Disposal')asset.status='decommissioned';else{if(record.transferTo)asset.location=record.transferTo;if(record.transferCentreId)asset.centreId=record.transferCentreId;if(record.transferWorkerId)asset.assignedWorkerId=record.transferWorkerId;}record.appliedAt=assetTransferDate();}
     if(record.action==='Transfer'&&!record.transferDate)record.transferDate=assetTransferDate();if(record.action==='Disposal'&&!record.disposalDate)record.disposalDate=assetTransferDate();record.status='Completed';
@@ -1917,9 +1949,9 @@ function renderAssetTransfers(){
     if(canReviewAssetTransfer()){
       if(r.status==='Requested')buttons='<button class="btn btn-accent btn-sm" onclick="reviewAssetTransfer(&quot;approve&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Approve</button> <button class="btn btn-danger btn-sm" onclick="reviewAssetTransfer(&quot;reject&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Reject</button>';
       else if(r.status==='Approved')buttons='<button class="btn btn-ghost btn-sm" onclick="reviewAssetTransfer(&quot;start&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Start</button>';
-      else if(r.status==='In progress')buttons='<button class="btn btn-accent btn-sm" onclick="reviewAssetTransfer(&quot;complete&quot;,&quot;'+escapeAttr(r.id)+'&quot;)">Complete</button>';
+      else if(r.status==='In progress')buttons='<button class="btn btn-accent btn-sm" onclick="openAssetTransferCompletion(&quot;'+escapeAttr(r.id)+'&quot;)">Complete</button>';
     }
-    return '<tr><td><b>'+escapeHtml(r.ref)+'</b><div class="asset-register-sub">'+escapeHtml(r.reason)+'</div></td><td><div class="asset-register-main">'+escapeHtml(r.desc)+'</div><div class="asset-register-sub">'+escapeHtml(r.assetNo)+(asset?' · '+escapeHtml((centreById(asset.centreId)||{}).name||''):' · asset no longer active')+'</div></td><td>'+escapeHtml(r.action)+'</td><td>'+escapeHtml(r.reqDate||'—')+'<div class="asset-register-sub">By '+escapeHtml(r.requestedBy||'—')+'</div></td><td>'+escapeHtml(destination||'—')+(r.action==='Disposal'&&r.proceeds?' <div class="asset-register-sub">Proceeds R '+fmtMoney(r.proceeds)+'</div>':'')+'</td><td>'+approval+'</td><td>'+pill(r.status||'Requested')+'</td><td>'+buttons+'</td></tr>';
+    return '<tr><td><b>'+escapeHtml(r.ref)+'</b><div class="asset-register-sub">'+escapeHtml(r.reason)+'</div></td><td><div class="asset-register-main">'+escapeHtml(r.desc)+'</div><div class="asset-register-sub">'+escapeHtml(r.assetNo)+(asset?' · '+escapeHtml((centreById(asset.centreId)||{}).name||''):' · asset no longer active')+'</div></td><td>'+escapeHtml(r.action)+'</td><td>'+escapeHtml(r.reqDate||'—')+'<div class="asset-register-sub">By '+escapeHtml(r.requestedBy||'—')+'</div></td><td>'+escapeHtml(destination||'—')+(r.action==='Disposal'&&r.proceeds?' <div class="asset-register-sub">Proceeds R '+fmtMoney(r.proceeds)+'</div>':'')+'</td><td>'+assetEvidenceLink(r.evidence,'View photo')+'</td><td>'+assetEvidenceLink(r.resolutionEvidence,'View completion photo')+'</td><td>'+approval+'</td><td>'+pill(r.status||'Requested')+'</td><td>'+buttons+'</td></tr>';
   }).join('');
   const empty=document.getElementById('atd-empty');if(empty)empty.style.display=visible.length?'none':'block';
 }
