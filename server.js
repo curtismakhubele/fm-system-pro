@@ -464,6 +464,17 @@ async function sendWhatsAppText(to,body) {
   if(!response.ok)throw new Error(data?.error?.message||'WhatsApp could not send the message.');
   return data.messages?.[0]?.id||null;
 }
+async function sendWhatsAppTemplate(to,name,language,parameters=[]) {
+  const phoneNumberId=String(process.env.WHATSAPP_PHONE_NUMBER_ID||'').trim();
+  const accessToken=String(process.env.WHATSAPP_ACCESS_TOKEN||'').trim();
+  const version=String(process.env.WHATSAPP_GRAPH_API_VERSION||process.env.WHATSAPP_GRAPH_VERSION||'').trim();
+  if(!phoneNumberId||!accessToken||!version||!/^[0-9]+$/.test(phoneNumberId)||!/^v[0-9]+[.][0-9]+$/.test(version))throw new Error('WhatsApp inbox is not configured.');
+  const components=parameters.length?[{type:'body',parameters:parameters.map(value=>({type:'text',text:value}))}]:[];
+  const response=await fetch('https://graph.facebook.com/'+version+'/'+phoneNumberId+'/messages',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to,type:'template',template:{name,language:{code:language},...(components.length?{components}:{})}})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data?.error?.message||'WhatsApp template could not be sent.');
+  return data.messages?.[0]?.id||null;
+}
 function serveFile(req, res) {
   const requestPath = req.url === '/' ? '/index.html' : decodeURIComponent(req.url.split('?')[0]);
   const file = path.resolve(ROOT, '.' + requestPath);
@@ -700,6 +711,18 @@ async function handle(req, res) {
     if(!conversation)return respond(res,404,{error:'Conversation not found.'},apiHeaders);
     conversation.unread=0;save(state);
     return respond(res,200,store.messages.filter(item=>item.conversation_id===id).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)).slice(-500),apiHeaders);
+  }
+  if(req.method==='POST'&&url.pathname==='/api/whatsapp/template'){
+    const actor=requireWhatsAppUser(req,res,state);if(!actor)return;
+    const body=await readJson(req),to=String(body.to||'').replace(/[^0-9]/g,''),name=String(body.templateName||process.env.WHATSAPP_TEMPLATE_NAME||'').trim(),language=String(body.language||process.env.WHATSAPP_TEMPLATE_LANGUAGE||'en').trim();
+    const parameters=Array.isArray(body.parameters)?body.parameters.slice(0,10).map(value=>String(value||'').trim().slice(0,1024)):[],conversation=whatsappStore(state).conversations.find(item=>item.external_id===to);
+    if(!to||!conversation)return respond(res,400,{error:'Select an existing WhatsApp conversation.'},apiHeaders);
+    if(!/^[a-z0-9_]{1,128}$/.test(name)||!/^[A-Za-z0-9_-]{2,32}$/.test(language))return respond(res,400,{error:'Enter a valid approved template name and language code.'},apiHeaders);
+    try{
+      const externalId=await sendWhatsAppTemplate(to,name,language,parameters);
+      whatsappAppendMessage(state,conversation,{direction:'outbound',sender:actor.name||actor.email||'Facilities Management',body:'[Approved template sent: '+name+']',message_type:'template',external_message_id:externalId,status:'sent'});
+      save(state);return respond(res,201,{ok:true,messageId:externalId,conversationId:conversation.id},apiHeaders);
+    }catch(error){return respond(res,502,{error:error.message},apiHeaders);}
   }
   if(req.method==='POST'&&url.pathname==='/api/whatsapp/send'){
     const actor=requireWhatsAppUser(req,res,state);if(!actor)return;
