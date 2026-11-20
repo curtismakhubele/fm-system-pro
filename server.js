@@ -416,6 +416,54 @@ function corsHeaders(req) {
 }
 function respond(res, status, data, headers={}) { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', ...headers }); res.end(JSON.stringify(data)); }
 function readJson(req) { return new Promise((resolve, reject) => { let body=''; req.on('data', c=>{ body+=c; if(body.length>2_000_000) req.destroy(); }); req.on('end', ()=>{ try{ resolve(body ? JSON.parse(body) : {}); }catch{ reject(new Error('Invalid JSON')); } }); }); }
+function readRawBody(req, limit=1_000_000) {
+  return new Promise((resolve,reject)=>{
+    const chunks=[]; let size=0;
+    req.on('data',chunk=>{ size+=chunk.length; if(size>limit){ reject(new Error('Request body too large')); req.destroy(); return; } chunks.push(chunk); });
+    req.on('end',()=>resolve(Buffer.concat(chunks)));
+    req.on('error',reject);
+  });
+}
+function whatsappStore(state) {
+  if(!state.whatsappMessaging||typeof state.whatsappMessaging!=='object') state.whatsappMessaging={conversations:[],messages:[]};
+  if(!Array.isArray(state.whatsappMessaging.conversations)) state.whatsappMessaging.conversations=[];
+  if(!Array.isArray(state.whatsappMessaging.messages)) state.whatsappMessaging.messages=[];
+  return state.whatsappMessaging;
+}
+function whatsappConversation(state, phone, name='') {
+  const store=whatsappStore(state); let conversation=store.conversations.find(item=>item.external_id===phone);
+  if(!conversation){
+    const at=new Date().toISOString();
+    conversation={id:crypto.randomUUID(),channel:'whatsapp',external_id:phone,display_name:name||phone,last_message:'',last_message_at:at,unread:0,created_at:at};
+    store.conversations.push(conversation);
+  }else if(name) conversation.display_name=name;
+  return conversation;
+}
+function whatsappAppendMessage(state, conversation, message) {
+  const store=whatsappStore(state);
+  if(message.external_message_id&&store.messages.some(item=>item.external_message_id===message.external_message_id))return null;
+  const row={id:crypto.randomUUID(),conversation_id:conversation.id,direction:message.direction,sender:message.sender||'',body:String(message.body||'').slice(0,4000),message_type:message.message_type||'text',external_message_id:message.external_message_id||null,status:message.status||'received',created_at:message.created_at||new Date().toISOString()};
+  store.messages.push(row);
+  if(store.messages.length>20000)store.messages=store.messages.slice(-20000);
+  conversation.last_message=row.body.slice(0,500);conversation.last_message_at=row.created_at;
+  if(row.direction==='inbound')conversation.unread=(conversation.unread||0)+1;
+  return row;
+}
+function requireWhatsAppUser(req,res,state) {
+  const user=requireUser(req,res,state);
+  if(user&&!['admin','superadmin','hq','centre'].includes(user.role)){respond(res,403,{error:'WhatsApp inbox access is limited to Admin, HQ and Centre roles.'});return null;}
+  return user;
+}
+async function sendWhatsAppText(to,body) {
+  const phoneNumberId=String(process.env.WHATSAPP_PHONE_NUMBER_ID||'').trim();
+  const accessToken=String(process.env.WHATSAPP_ACCESS_TOKEN||'').trim();
+  const version=String(process.env.WHATSAPP_GRAPH_API_VERSION||process.env.WHATSAPP_GRAPH_VERSION||'').trim();
+  if(!phoneNumberId||!accessToken||!version||!/^[0-9]+$/.test(phoneNumberId)||!/^v[0-9]+\\.[0-9]+$/.test(version))throw new Error('WhatsApp inbox is not configured. Set its server-side phone number ID, access token and Graph API version.');
+  const response=await fetch('https://graph.facebook.com/'+version+'/'+phoneNumberId+'/messages',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',recipient_type:'individual',to,type:'text',text:{preview_url:false,body}})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data?.error?.message||'WhatsApp could not send the message.');
+  return data.messages?.[0]?.id||null;
+}
 function serveFile(req, res) {
   const requestPath = req.url === '/' ? '/index.html' : decodeURIComponent(req.url.split('?')[0]);
   const file = path.resolve(ROOT, '.' + requestPath);
@@ -616,6 +664,57 @@ async function handle(req, res) {
   if (req.method==='OPTIONS' && url.pathname.startsWith('/api/')) { res.writeHead(204, corsHeaders(req)); return res.end(); }
   const apiHeaders = corsHeaders(req);
   for (const [name, value] of Object.entries(apiHeaders)) res.setHeader(name, value);
+  if(req.method==='GET'&&url.pathname==='/webhooks/whatsapp'){
+    const mode=url.searchParams.get('hub.mode'),token=url.searchParams.get('hub.verify_token'),challenge=url.searchParams.get('hub.challenge'),expected=String(process.env.WHATSAPP_VERIFY_TOKEN||'').trim();
+    if(mode==='subscribe'&&expected&&token&&token.length===expected.length&&crypto.timingSafeEqual(Buffer.from(token),Buffer.from(expected))){res.writeHead(200,{'Content-Type':'text/plain'});return res.end(challenge||'');}
+    res.writeHead(403);return res.end('Forbidden');
+  }
+  if(req.method==='POST'&&url.pathname==='/webhooks/whatsapp'){
+    const appSecret=String(process.env.WHATSAPP_APP_SECRET||'').trim(),signature=String(req.headers['x-hub-signature-256']||'');
+    if(!appSecret)return respond(res,503,{error:'WhatsApp webhook signing is not configured.'},apiHeaders);
+    const raw=await readRawBody(req),expected='sha256='+crypto.createHmac('sha256',appSecret).update(raw).digest('hex'),sigA=Buffer.from(signature),sigB=Buffer.from(expected);
+    if(sigA.length!==sigB.length||!crypto.timingSafeEqual(sigA,sigB))return respond(res,401,{error:'Invalid webhook signature.'},apiHeaders);
+    let event;try{event=JSON.parse(raw.toString('utf8'));}catch{return respond(res,400,{error:'Invalid webhook payload.'},apiHeaders);}
+    const store=whatsappStore(state);
+    for(const entry of event.entry||[])for(const change of entry.changes||[]){
+      const value=change.value||{},names=new Map((value.contacts||[]).map(contact=>[String(contact.wa_id||''),String(contact.profile?.name||'')]));
+      for(const incoming of value.messages||[]){
+        const phone=String(incoming.from||'').replace(/[^0-9]/g,'');if(!phone||!incoming.id)continue;
+        const conversation=whatsappConversation(state,phone,names.get(phone)||phone);
+        const body=incoming.text?.body||incoming.image?.caption||incoming.document?.caption||'['+(incoming.type||'message')+' received]';
+        const createdAt=new Date(Number(incoming.timestamp||Date.now()/1000)*1000).toISOString();
+        whatsappAppendMessage(state,conversation,{direction:'inbound',sender:names.get(phone)||phone,body,message_type:incoming.type||'text',external_message_id:incoming.id,status:'received',created_at:createdAt});
+      }
+      for(const status of value.statuses||[])for(const message of store.messages)if(message.external_message_id===status.id)message.status=String(status.status||'unknown');
+    }
+    save(state);return respond(res,200,{ok:true},apiHeaders);
+  }
+  if(req.method==='GET'&&url.pathname==='/api/whatsapp/conversations'){
+    if(!requireWhatsAppUser(req,res,state))return;
+    const store=whatsappStore(state);return respond(res,200,store.conversations.slice().sort((a,b)=>Date.parse(b.last_message_at)-Date.parse(a.last_message_at)),apiHeaders);
+  }
+  const waMessagesMatch=url.pathname.match(/^\\/api\\/whatsapp\\/conversations\\/([^/]+)\\/messages$/);
+  if(waMessagesMatch&&req.method==='GET'){
+    if(!requireWhatsAppUser(req,res,state))return;
+    const store=whatsappStore(state),id=decodeURIComponent(waMessagesMatch[1]),conversation=store.conversations.find(item=>item.id===id);
+    if(!conversation)return respond(res,404,{error:'Conversation not found.'},apiHeaders);
+    conversation.unread=0;save(state);
+    return respond(res,200,store.messages.filter(item=>item.conversation_id===id).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)).slice(-500),apiHeaders);
+  }
+  if(req.method==='POST'&&url.pathname==='/api/whatsapp/send'){
+    const actor=requireWhatsAppUser(req,res,state);if(!actor)return;
+    const body=await readJson(req),to=String(body.to||'').replace(/[^0-9]/g,''),message=String(body.body||'').trim().slice(0,2000);
+    if(!to||!message)return respond(res,400,{error:'A WhatsApp number and message are required.'},apiHeaders);
+    const conversation=whatsappStore(state).conversations.find(item=>item.external_id===to);
+    if(!conversation)return respond(res,404,{error:'Open an inbound conversation before replying.'},apiHeaders);
+    const lastInbound=whatsappStore(state).messages.filter(item=>item.conversation_id===conversation.id&&item.direction==='inbound').sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at))[0];
+    if(!lastInbound||Date.now()-Date.parse(lastInbound.created_at)>24*60*60*1000)return respond(res,409,{error:'The 24-hour customer-service window has closed. Use an approved WhatsApp template.'},apiHeaders);
+    try{
+      const externalId=await sendWhatsAppText(to,message);
+      whatsappAppendMessage(state,conversation,{direction:'outbound',sender:actor.name||actor.email||'Facilities Management',body:message,external_message_id:externalId,status:'sent'});
+      save(state);return respond(res,201,{ok:true,messageId:externalId,conversationId:conversation.id},apiHeaders);
+    }catch(error){return respond(res,502,{error:error.message},apiHeaders);}
+  }
   if (req.method==='GET' && url.pathname==='/api/health') return respond(res,200,{ok:true,authenticated:!!userFor(req,state)},apiHeaders);
   if (req.method==='GET' && url.pathname==='/api/auth/me') { const user=userFor(req,state); return user ? respond(res,200,{user:publicUser(user)},apiHeaders) : respond(res,401,{error:'Not signed in'},apiHeaders); }
   if (req.method==='POST' && url.pathname==='/api/auth/login') {
