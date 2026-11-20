@@ -361,6 +361,24 @@
   #view-workorder-create .work-order-create-submit{background:#10243d;color:#fff;}
   @media(max-width:720px){#view-workorder-create .row2{grid-template-columns:1fr;}}
   .asset-register-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}.asset-register-stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}.asset-register-label{font-size:12px;color:var(--ink-soft)}.asset-register-stat strong{display:block;font:700 27px var(--font-display);margin:8px 0 1px}.asset-register-stat small,.asset-register-panel-head p{color:var(--ink-soft);font-size:11px}.asset-register-panel{overflow:hidden}.asset-register-panel-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}.asset-register-panel-head h2{font-size:16px;margin:0}.asset-register-panel-head p{margin:3px 0 0}.asset-register-categories{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px}.asset-register-category{border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:12px;text-align:left;color:var(--ink);cursor:pointer}.asset-register-category:hover,.asset-register-category.selected{border-color:var(--accent);background:var(--warn-bg)}.asset-register-category-icon{font-size:20px;margin-bottom:7px}.asset-register-category-name{font-weight:700}.asset-register-category-count{font:700 21px var(--font-display);margin-top:5px}.asset-register-category-caption{font-size:10px;color:var(--ink-soft)}.asset-register-filters{display:flex;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)}.asset-register-filters input,.asset-register-filters select{border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--panel);color:var(--ink);min-width:130px}.asset-register-filters input{flex:1;min-width:190px}.asset-register-table-wrap{overflow:auto}.asset-condition{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700}.asset-condition-good{background:var(--good-bg);color:var(--good)}.asset-condition-fair{background:var(--warn-bg);color:var(--warn)}.asset-condition-poor,.asset-condition-damaged{background:var(--crit-bg);color:var(--crit)}.asset-register-table-wrap td{vertical-align:middle}.asset-register-main{font-weight:650}.asset-register-sub{font-size:10px;color:var(--ink-soft);margin-top:2px}@media(max-width:1050px){.asset-register-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.asset-register-categories{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.asset-register-categories{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px}.asset-register-stats{gap:8px}.asset-register-stat{padding:12px}.asset-register-stat strong{font-size:22px}.asset-register-panel-head{padding:13px}}</style>
+<style>
+.wa-inbox-layout{display:grid;grid-template-columns:minmax(230px,330px) minmax(0,1fr);gap:14px;min-height:460px}
+.wa-inbox-list,.wa-inbox-thread{min-width:0;display:flex;flex-direction:column}
+.wa-inbox-list-items{overflow:auto;max-height:540px}
+.wa-inbox-item{display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--border);background:transparent;color:var(--ink);padding:12px 14px;cursor:pointer}
+.wa-inbox-item:hover,.wa-inbox-item.active{background:var(--info-bg)}
+.wa-inbox-item strong,.wa-inbox-item small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wa-inbox-item small{color:var(--ink-soft);margin-top:3px}
+.wa-inbox-thread-head{padding:14px 16px;border-bottom:1px solid var(--border)}
+.wa-inbox-messages{display:flex;flex:1;flex-direction:column;gap:9px;min-height:300px;max-height:470px;overflow:auto;padding:16px;background:var(--bg)}
+.wa-inbox-bubble{align-self:flex-start;max-width:min(82%,680px);padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:var(--panel);white-space:pre-wrap;overflow-wrap:anywhere}
+.wa-inbox-bubble.outbound{align-self:flex-end;background:var(--info-bg);border-color:transparent}
+.wa-inbox-bubble small{display:block;margin-top:5px;color:var(--ink-soft);font-size:10px}
+.wa-inbox-compose{padding:12px;border-top:1px solid var(--border)}
+.wa-inbox-compose textarea{width:100%;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--panel);color:var(--ink);font:inherit}
+.wa-inbox-empty{padding:22px;text-align:center;color:var(--ink-soft)}
+@media(max-width:850px){.wa-inbox-layout{grid-template-columns:1fr}.wa-inbox-list-items{max-height:220px}.wa-inbox-messages{min-height:240px}}
+</style>
 </head>
 <body>
 
@@ -821,7 +839,18 @@
 
     <!-- WHATSAPP -->
     <section class="view" id="view-whatsapp">
-      <div class="topbar"><div><h1>WhatsApp</h1><div class="meta">Start a chat with the facilities team</div></div></div>
+      <div class="topbar"><div><h1>WhatsApp</h1><div class="meta">Business inbox and facilities contact</div></div><button class="btn btn-ghost" type="button" onclick="waLoadInbox()">↻ Refresh inbox</button></div>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><div><h2>WhatsApp inbox</h2><div class="sub">Messages received by the connected business number</div></div><span class="pill info">Inbox</span></div>
+        <div class="wa-inbox-layout">
+          <aside class="wa-inbox-list"><div id="wa-inbox-list" class="wa-inbox-list-items"><div class="wa-inbox-empty">Refresh the inbox to load conversations.</div></div></aside>
+          <section class="wa-inbox-thread"><div class="wa-inbox-thread-head"><strong id="wa-inbox-title">Select a conversation</strong><div class="sub" id="wa-inbox-subtitle">Replies are available during WhatsApp's 24-hour service window.</div></div>
+            <div id="wa-inbox-messages" class="wa-inbox-messages"><div class="wa-inbox-empty">Choose a conversation from the inbox.</div></div>
+            <div class="wa-inbox-compose"><textarea id="wa-inbox-input" rows="2" maxlength="2000" placeholder="Write a reply…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();waSendInboxMessage();}"></textarea><div class="topbar-actions" style="margin-top:8px;"><span class="sub" id="wa-inbox-status">Enter to send · Shift+Enter for a new line</span><button class="btn btn-accent btn-sm" type="button" onclick="waSendInboxMessage()">Send reply</button></div></div>
+          </section>
+        </div>
+      </div>
+      <div class="banner" style="margin-bottom:16px;"><span>ⓘ</span><div>Replies use the connected business number and are limited to the active 24-hour service window. After it closes, use an approved WhatsApp template.</div></div>
       <div class="panel">
         <div class="panel-head"><div><h2>Facilities WhatsApp</h2><div class="sub" id="wa-number-status">Ready to open a chat</div></div><span class="pill active">Ready</span></div>
         <div class="row2">
@@ -3734,6 +3763,55 @@ function renderAll(){
   renderGlobalSearchResults();
   applyPermissionVisibility();
 }
+
+/* ---------- WhatsApp business inbox ---------- */
+let waInboxState={conversations:[],activeId:null};
+function waInboxStatus(message){const el=document.getElementById('wa-inbox-status');if(el)el.textContent=message||'';}
+async function waInboxRequest(path,options={}){
+ const response=await apiFetch(path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||'WhatsApp inbox request failed.');
+ return data;
+}
+function waRenderInboxList(){
+ const box=document.getElementById('wa-inbox-list');if(!box)return;
+ if(!waInboxState.conversations.length){box.innerHTML='<div class="wa-inbox-empty">No WhatsApp messages received yet.</div>';return;}
+ box.innerHTML=waInboxState.conversations.map(c=>'<button class="wa-inbox-item '+(c.id===waInboxState.activeId?'active':'')+'" type="button" onclick="waOpenInboxConversation(\''+escapeAttr(c.id)+'\')"><strong>'+escapeHtml(c.display_name||c.external_id||'Conversation')+(c.unread?'<span class="badge" style="float:right">'+Number(c.unread)+'</span>':'')+'</strong><small>'+escapeHtml(c.last_message||'No messages yet')+'</small><small>'+escapeHtml(c.last_message_at?new Date(c.last_message_at).toLocaleString():'')+'</small></button>').join('');
+}
+async function waLoadInbox(){
+ const box=document.getElementById('wa-inbox-list');if(!box)return;
+ box.innerHTML='<div class="wa-inbox-empty">Loading conversations…</div>';waInboxStatus('Refreshing inbox…');
+ try{
+  waInboxState.conversations=await waInboxRequest('/api/whatsapp/conversations');
+  if(!waInboxState.conversations.some(c=>c.id===waInboxState.activeId))waInboxState.activeId=null;
+  waRenderInboxList();waInboxStatus('Inbox refreshed');
+  if(waInboxState.activeId)await waOpenInboxConversation(waInboxState.activeId);
+ }catch(error){box.innerHTML='<div class="wa-inbox-empty">'+escapeHtml(error.message)+'</div>';waInboxStatus('Check the connection and WhatsApp configuration.');}
+}
+async function waOpenInboxConversation(id){
+ const conversation=waInboxState.conversations.find(c=>c.id===id);if(!conversation)return;
+ waInboxState.activeId=id;waRenderInboxList();
+ document.getElementById('wa-inbox-title').textContent=conversation.display_name||conversation.external_id;
+ document.getElementById('wa-inbox-subtitle').textContent='+'+String(conversation.external_id||'')+' · WhatsApp';
+ const box=document.getElementById('wa-inbox-messages');box.innerHTML='<div class="wa-inbox-empty">Loading messages…</div>';
+ try{
+  const messages=await waInboxRequest('/api/whatsapp/conversations/'+encodeURIComponent(id)+'/messages');
+  box.innerHTML=messages.map(m=>'<div class="wa-inbox-bubble '+(m.direction==='outbound'?'outbound':'')+'">'+escapeHtml(m.body)+'<small>'+escapeHtml(m.sender||'')+' · '+escapeHtml(m.created_at?new Date(m.created_at).toLocaleString():'')+(m.direction==='outbound'?' · '+escapeHtml(m.status||'sent'):'')+'</small></div>').join('')||'<div class="wa-inbox-empty">No messages yet.</div>';
+  box.scrollTop=box.scrollHeight;
+  waInboxState.conversations=waInboxState.conversations.map(c=>c.id===id?{...c,unread:0}:c);waRenderInboxList();waInboxStatus('Conversation loaded');
+ }catch(error){box.innerHTML='<div class="wa-inbox-empty">'+escapeHtml(error.message)+'</div>';waInboxStatus('Could not load this conversation.');}
+}
+async function waSendInboxMessage(){
+ const conversation=waInboxState.conversations.find(c=>c.id===waInboxState.activeId),input=document.getElementById('wa-inbox-input'),body=input.value.trim();
+ if(!conversation||!body){waInboxStatus('Select a conversation and enter a reply.');return;}
+ waInboxStatus('Sending reply…');
+ try{
+  await waInboxRequest('/api/whatsapp/send',{method:'POST',body:JSON.stringify({to:conversation.external_id,body})});
+  input.value='';waInboxStatus('Reply sent');await waLoadInbox();if(waInboxState.activeId)await waOpenInboxConversation(waInboxState.activeId);
+ }catch(error){waInboxStatus(error.message);}
+}
+const waInboxOriginalGoToView=goToView;
+goToView=function(view){waInboxOriginalGoToView(view);if(view==='whatsapp')waLoadInbox();};
 
 loadData();
 </script>
