@@ -693,10 +693,10 @@ async function handle(req, res) {
     if(!requireWhatsAppUser(req,res,state))return;
     const store=whatsappStore(state);return respond(res,200,store.conversations.slice().sort((a,b)=>Date.parse(b.last_message_at)-Date.parse(a.last_message_at)),apiHeaders);
   }
-  const waMessagesMatch=url.pathname.match(new RegExp('^/api/whatsapp/conversations/([^/]+)/messages;
-  if(waMessagesMatch&&req.method==='GET'){
+  const waMessagesSegments=url.pathname.split('/');
+  if(req.method==='GET'&&waMessagesSegments.length===6&&waMessagesSegments[1]==='api'&&waMessagesSegments[2]==='whatsapp'&&waMessagesSegments[3]==='conversations'&&waMessagesSegments[5]==='messages'){
     if(!requireWhatsAppUser(req,res,state))return;
-    const store=whatsappStore(state),id=decodeURIComponent(waMessagesMatch[1]),conversation=store.conversations.find(item=>item.id===id);
+    const store=whatsappStore(state),id=decodeURIComponent(waMessagesSegments[4]),conversation=store.conversations.find(item=>item.id===id);
     if(!conversation)return respond(res,404,{error:'Conversation not found.'},apiHeaders);
     conversation.unread=0;save(state);
     return respond(res,200,store.messages.filter(item=>item.conversation_id===id).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)).slice(-500),apiHeaders);
