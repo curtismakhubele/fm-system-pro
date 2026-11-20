@@ -846,7 +846,7 @@
           <aside class="wa-inbox-list"><div id="wa-inbox-list" class="wa-inbox-list-items"><div class="wa-inbox-empty">Refresh the inbox to load conversations.</div></div></aside>
           <section class="wa-inbox-thread"><div class="wa-inbox-thread-head"><strong id="wa-inbox-title">Select a conversation</strong><div class="sub" id="wa-inbox-subtitle">Replies are available during WhatsApp's 24-hour service window.</div></div>
             <div id="wa-inbox-messages" class="wa-inbox-messages"><div class="wa-inbox-empty">Choose a conversation from the inbox.</div></div>
-            <div class="wa-inbox-compose"><textarea id="wa-inbox-input" rows="2" maxlength="2000" placeholder="Write a reply…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();waSendInboxMessage();}"></textarea><div class="topbar-actions" style="margin-top:8px;"><span class="sub" id="wa-inbox-status">Enter to send · Shift+Enter for a new line</span><button class="btn btn-accent btn-sm" type="button" onclick="waSendInboxMessage()">Send reply</button></div></div>
+            <div class="wa-inbox-compose"><textarea id="wa-inbox-input" rows="2" maxlength="2000" placeholder="Write a reply…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();waSendInboxMessage();}"></textarea><div class="topbar-actions" style="margin-top:8px;"><span class="sub" id="wa-inbox-status">Enter to send · Shift+Enter for a new line</span><button class="btn btn-ghost btn-sm" type="button" onclick="openWaTemplateModal()">Send approved template</button><button class="btn btn-accent btn-sm" type="button" onclick="waSendInboxMessage()">Send reply</button></div></div>
           </section>
         </div>
       </div>
@@ -3800,6 +3800,20 @@ async function waOpenInboxConversation(id){
   box.scrollTop=box.scrollHeight;
   waInboxState.conversations=waInboxState.conversations.map(c=>c.id===id?{...c,unread:0}:c);waRenderInboxList();waInboxStatus('Conversation loaded');
  }catch(error){box.innerHTML='<div class="wa-inbox-empty">'+escapeHtml(error.message)+'</div>';waInboxStatus('Could not load this conversation.');}
+}
+function openWaTemplateModal(){
+ const conversation=waInboxState.conversations.find(c=>c.id===waInboxState.activeId);
+ if(!conversation){waInboxStatus('Select a conversation first.');return;}
+ openModal('<h3>Send approved WhatsApp template</h3><div class="modal-sub">Templates can start or continue a conversation outside the 24-hour service window.</div><div class="field"><label>Template name</label><input id="wa-template-name" placeholder="Leave blank to use the server default"></div><div class="row2"><div class="field"><label>Language code</label><input id="wa-template-language" value="en_ZA"></div><div class="field"><label>Recipient</label><input value="'+escapeAttr(conversation.external_id||'')+'" readonly></div></div><div class="field"><label>Body parameters</label><textarea id="wa-template-parameters" rows="4" placeholder="One value per line, in the order required by the approved template"></textarea><span class="field-hint">Use only the parameter values required by the approved Meta template.</span></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="waSendTemplateMessage()">Send template</button></div>');
+}
+async function waSendTemplateMessage(){
+ const conversation=waInboxState.conversations.find(c=>c.id===waInboxState.activeId);if(!conversation){showToast('Select a conversation first');return;}
+ const name=document.getElementById('wa-template-name').value.trim(),language=document.getElementById('wa-template-language').value.trim(),parameters=document.getElementById('wa-template-parameters').value.split(/\r?\n/).map(value=>value.trim()).filter(Boolean);
+ waInboxStatus('Sending approved template…');
+ try{
+  await waInboxRequest('/api/whatsapp/template',{method:'POST',body:JSON.stringify({to:conversation.external_id,templateName:name,language,parameters})});
+  closeModal();waInboxStatus('Approved template sent');await waLoadInbox();if(waInboxState.activeId)await waOpenInboxConversation(waInboxState.activeId);
+ }catch(error){waInboxStatus(error.message);}
 }
 async function waSendInboxMessage(){
  const conversation=waInboxState.conversations.find(c=>c.id===waInboxState.activeId),input=document.getElementById('wa-inbox-input'),body=input.value.trim();
