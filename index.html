@@ -442,7 +442,7 @@
 
     <div class="ms-auth-box" id="ms-auth-box">
       <div style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.6px;color:#5A6472;margin-bottom:6px;">Application account</div>
-      <div id="ms-auth-status" style="font-size:12px;color:#B9C4D0;">Checking…</div>
+      <div id="ms-auth-status" style="font-size:12px;color:#B9C4D0;">Application sign-in is available</div>
     </div>
 
     <nav class="groups" id="nav-groups">
@@ -1534,7 +1534,7 @@ async function appSignOut(){
 function renderAuthBox(){
   const box = document.getElementById('ms-auth-status');
   const wrapper = document.getElementById('ms-auth-box');
-  if(msAuth.available === null){ if(wrapper) wrapper.style.display=''; box.textContent = 'Checking…'; }
+  if(msAuth.available === null){ if(wrapper) wrapper.style.display=''; box.textContent = 'Application sign-in is available'; }
   else if(msAuth.user){
     if(wrapper) wrapper.style.display='';
     box.innerHTML = `<div class="signed-in"><div class="avatar-sm">${initialsSafe(msAuth.user.name)}</div><div style="min-width:0;"><div style="color:#fff;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(msAuth.user.name)}</div><a class="auth-link" onclick="openPasswordChangeModal()">Change password</a><br><a class="auth-link" onclick="appSignOut()">Sign out</a></div></div>`;
