@@ -418,8 +418,17 @@ function appDataPermissionError(user, beforeValue, nextValue) {
 }
 function corsHeaders(req) {
   const origin = req.headers.origin;
-  const allowed = !origin || origin === 'null' || origin === 'http://localhost:4310' || origin === 'https://pidmms.azurewebsites.net' || origin === 'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net';
-  return allowed && origin ? { 'Access-Control-Allow-Origin':origin, 'Access-Control-Allow-Credentials':'true', 'Access-Control-Allow-Headers':'Content-Type, Accept', 'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE, OPTIONS' } : {};
+  const allowedOrigins = new Set([
+    'http://localhost:4310',
+    'https://pidmms.azurewebsites.net',
+    'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net',
+    'https://curtismakhubele.github.io',
+    ...String(process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(value=>value.trim()).filter(Boolean)
+  ]);
+  const allowed = !origin || origin === 'null' || allowedOrigins.has(origin);
+  return allowed && origin
+    ? { 'Vary':'Origin', 'Access-Control-Allow-Origin':origin, 'Access-Control-Allow-Credentials':'true', 'Access-Control-Allow-Headers':'Authorization, Content-Type, Accept', 'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE, OPTIONS' }
+    : { 'Vary':'Origin' };
 }
 function respond(res, status, data, headers={}) { res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', ...headers }); res.end(JSON.stringify(data)); }
 function readJson(req) { return new Promise((resolve, reject) => { let body=''; req.on('data', c=>{ body+=c; if(body.length>2_000_000) req.destroy(); }); req.on('end', ()=>{ try{ resolve(body ? JSON.parse(body) : {}); }catch{ reject(new Error('Invalid JSON')); } }); }); }

@@ -971,7 +971,9 @@
 <script>
 /* ---------- live server storage ---------- */
 const localHost = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname) || window.location.protocol === 'file:';
-const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:4310' : localHost ? window.location.origin : '';
+const LIVE_API_ORIGIN = 'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net';
+const isGitHubPages = window.location.hostname.endsWith('.github.io');
+const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:4310' : localHost ? window.location.origin : isGitHubPages ? LIVE_API_ORIGIN : '';
 const apiUrl = path => API_ORIGIN + path;
 const apiOrigins = localHost && window.location.protocol !== 'file:' && !/:(4310)$/.test(window.location.origin)
   ? [window.location.origin, 'http://localhost:4310', 'https://pid-ftf6dmerh7fmfkga.southafricanorth-01.azurewebsites.net'] : [API_ORIGIN];
