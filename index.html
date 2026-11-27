@@ -382,7 +382,7 @@
 </head>
 <body>
 
-<div class="app-loader" id="app-loader" role="status" aria-live="polite" aria-label="Loading application">
+<div class="app-loader is-hidden" id="app-loader" role="status" aria-live="polite" aria-label="Loading application">
   <div class="app-loader-card">
     <div class="app-loader-mark" aria-hidden="true">PID</div>
     <div class="app-loader-spinner" aria-hidden="true"></div>
@@ -1020,13 +1020,15 @@ let passwordChangeRequired = false;
 
 function showAppLoader(){ const loader=document.getElementById('app-loader'); if(loader) loader.classList.remove('is-hidden'); }
 function hideAppLoader(){ const loader=document.getElementById('app-loader'); if(loader) loader.classList.add('is-hidden'); }
-async function loadData(){
-  showAppLoader();
+async function loadData({showLoaderOnStart=false}={}){
+  if(showLoaderOnStart) showAppLoader();
+  else hideAppLoader();
   try{
     initLoginLogo();
     try{ await checkMsAuth(); }
     catch(error){ console.warn('Account check failed; continuing with app sign-in.',error); }
     if(msAuth.user){
+      showAppLoader();
       try{
         const storedData = await window.storage.get(STORE_KEY, false);
         DATA = storedData && storedData.value ? JSON.parse(storedData.value) : blankData();
@@ -1504,7 +1506,7 @@ async function signIn(event){
     if (result && result.sessionToken) localStorage.setItem('pid_session_token', result.sessionToken);
     if (result && result.user) msAuth.user = result.user;
     document.getElementById('login-password').value='';
-    await loadData();
+    await loadData({showLoaderOnStart:true});
   }catch(e){ error.textContent=e.message==='Invalid email or password.' ? e.message : 'Cannot reach the live application server. Check your internet connection and try again.'; error.style.display='block'; }
   finally{ if(button){ button.disabled=false; button.classList.remove('is-loading'); button.textContent='Sign in'; } }
 }
