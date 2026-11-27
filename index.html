@@ -1262,9 +1262,13 @@ async function checkMsAuth(){
   }catch(e){
     appServerOnline = false; msAuth.user = null;
   }
+  const msAuthTimer = setTimeout(()=>{
+    if(msAuth.available === null){ msAuth.available = false; setMicrosoftSession([]); }
+    renderAuthBox();
+  }, 5000);
   void readMicrosoftSession()
     .catch(()=>{ msAuth.available = false; setMicrosoftSession([]); })
-    .finally(renderAuthBox);
+    .finally(()=>{ clearTimeout(msAuthTimer); renderAuthBox(); });
   renderAuthBox();
   maybeShowLoginGate();
 }

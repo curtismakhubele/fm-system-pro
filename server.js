@@ -492,7 +492,8 @@ async function sendWhatsAppTemplate(to,name,language,parameters=[]) {
   return data.messages?.[0]?.id||null;
 }
 function serveFile(req, res) {
-  const requestPath = req.url === '/' ? '/index.html' : decodeURIComponent(req.url.split('?')[0]);
+  const pathname = decodeURIComponent((req.url || '/').split('?')[0]) || '/';
+  const requestPath = pathname === '/' ? '/index.html' : pathname;
   const file = path.resolve(ROOT, '.' + requestPath);
   const relativePath = path.relative(ROOT, file);
   const segments = relativePath.split(path.sep);
