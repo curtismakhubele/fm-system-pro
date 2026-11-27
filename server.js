@@ -105,6 +105,7 @@ function syncBootstrapAdmin(state) {
   }
   return changed;
 }
+let bootstrapAdminSynced = false;
 function load() {
   let state;
   if (fs.existsSync(DATA_FILE)) state = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -118,8 +119,14 @@ function load() {
     };
     state = { users:[{ id:'admin-1', email:ADMIN_EMAIL, name:'Administrator', role:'superadmin', ...hash }], storage:{ 'pid-fms-data-v2':JSON.stringify(appData) } };
   }
-  const changed = syncBootstrapAdmin(state);
-  if (changed) save(state);
+  // Bootstrap credentials are process configuration; sync them once per start.
+  // Re-hashing the administrator password on every HTTP request stalls this
+  // single-threaded server and makes every API call needlessly expensive.
+  if (!bootstrapAdminSynced) {
+    const changed = syncBootstrapAdmin(state);
+    if (changed) save(state);
+    bootstrapAdminSynced = true;
+  }
   return state;
 }
 function save(state) {
@@ -671,8 +678,11 @@ function buildBuiltInPidReport(source, previousReport, intro) {
 }
 
 async function handle(req, res) {
-  const url = new URL(req.url, 'http://localhost'); const state=load();
+  const url = new URL(req.url, 'http://localhost');
   if (req.method==='OPTIONS' && url.pathname.startsWith('/api/')) { res.writeHead(204, corsHeaders(req)); return res.end(); }
+  // Static app assets do not need to load, parse, or normalize the database.
+  if (req.method==='GET' && url.pathname!=='/webhooks/whatsapp' && !url.pathname.startsWith('/api/')) return serveFile(req,res);
+  const state=load();
   const apiHeaders = corsHeaders(req);
   for (const [name, value] of Object.entries(apiHeaders)) res.setHeader(name, value);
   if(req.method==='GET'&&url.pathname==='/webhooks/whatsapp'){
